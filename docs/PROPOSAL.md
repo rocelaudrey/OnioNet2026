@@ -18,6 +18,7 @@ Settled with you:
 | 4 | Farmers sign in with mobile number or email plus a password. Staff create the account with a temporary password the farmer must change. |
 | 5 | Multi-step custody changes use MongoDB transactions. Local development uses a free Atlas dev cluster, the same kind of database as production. Tests use an in-memory MongoDB replica set. |
 | 6 | Farmer search text goes in the request body, never in the address. |
+| 7 | **Tagging by range at gate-in** is allowed for staff and admins: scan the first and last tag (default) or type the two numbers (fallback). All-or-nothing, up to 1,000 tags, and every sack's custody event records that it was tagged by range. |
 
 Assumptions I made while adding your later changes. Tell me if any is wrong; none of them blocks the scaffold step.
 
@@ -289,6 +290,7 @@ The custody record. Append-only: no route or code path can edit or delete one.
 | `tagId`, `sackId`, `batchId`, `memberId` | whichever apply |
 | `fromQuadrantId`, `toQuadrantId` | for moves and gate-in |
 | `performedBy`, `performedByName` | the staff member; name is copied so history survives renames |
+| `method` | `scan` (that tag was scanned), `range_scan` or `range_typed` (bound as part of a range) |
 | `occurredAt` | server time |
 | `releaseNo` | groups the sacks scanned out in one visit, for the release slip |
 | `clientEventId` | sent by the phone so a retry on a bad connection cannot record the same scan twice |
@@ -428,7 +430,9 @@ Adding or editing a quadrant is blocked if total active capacity would exceed th
 |---|---|---|
 | POST | `/custody/scan` | verify a QR and return the tag's state, sack, batch, and farmer name |
 | POST | `/custody/gate-in` | bind a tag to a new sack in a batch and place it in a quadrant |
+| POST | `/custody/gate-in-range` | bind a run of tags (first to last, scanned or typed) to new sacks in one step; `dryRun` previews it |
 | POST | `/custody/move` | move a sack to another quadrant |
+| POST | `/custody/releases` | start a release for one delivery; returns the release number |
 | POST | `/custody/gate-out` | release a sack and free its tag |
 | GET | `/custody/releases/:releaseNo` | release slip data: farmer, sacks released, sacks remaining, date, staff. Printed in the browser |
 | POST | `/custody/replace-tag` | move a sack from a damaged or lost tag to a new one |

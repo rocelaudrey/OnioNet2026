@@ -3,6 +3,7 @@ const TILE_COLORS = {
   purple: 'bg-brand-purple',
   orange: 'bg-brand-orange',
   red: 'bg-critical',
+  gray: 'bg-gray-400',
 };
 
 // Dashboard stat card: colored icon tile at top left, label, big number.

@@ -1,6 +1,8 @@
 export function Card({ title, children, className = '' }) {
   return (
-    <section className={`rounded-xl bg-white p-5 shadow-sm ${className}`}>
+    // min-w-0: inside a grid, let wide tables scroll within the card instead
+    // of stretching the page sideways on phones.
+    <section className={`min-w-0 rounded-xl bg-white p-5 shadow-sm ${className}`}>
       {title && <h2 className="mb-4 text-base">{title}</h2>}
       {children}
     </section>

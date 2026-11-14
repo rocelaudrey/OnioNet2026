@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { CUSTODY_EVENT_TYPES } from '../../shared/statuses.js';
+import { CUSTODY_EVENT_TYPES, CUSTODY_METHODS } from '../../shared/statuses.js';
 import { tenantPlugin } from '../plugins/tenant.js';
 import { immutablePlugin } from '../plugins/immutable.js';
 
@@ -9,6 +9,7 @@ const ref = (model, extra = {}) => ({ type: mongoose.Schema.Types.ObjectId, ref:
 const custodyEventSchema = new mongoose.Schema(
   {
     type: { type: String, enum: CUSTODY_EVENT_TYPES, required: true },
+    method: { type: String, enum: CUSTODY_METHODS, default: 'scan' },
     tagId: ref('Tag'),
     sackId: ref('Sack'),
     batchId: ref('Batch'),

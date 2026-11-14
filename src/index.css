@@ -25,3 +25,15 @@ body {
 h1, h2, h3 {
   font-weight: 600;
 }
+
+/* Print sheets (QR tags, slips): paper margins and exact colors. */
+@page {
+  size: A4;
+  margin: 10mm;
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
+}

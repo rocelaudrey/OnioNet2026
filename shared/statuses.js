@@ -2,7 +2,7 @@
 export const MEMBER_TIERS = ['member', 'guest'];
 export const MEMBER_STATUSES = ['active', 'inactive'];
 export const OWNER_TYPES = ['member', 'guest', 'coop_owned'];
-export const BATCH_STATUSES = ['receiving', 'stored', 'partly_released', 'released'];
+export const BATCH_STATUSES = ['receiving', 'stored', 'partly_released', 'released', 'cancelled'];
 export const SACK_STATUSES = ['stored', 'released', 'damaged', 'lost'];
 export const TAG_STATUSES = ['available', 'assigned', 'damaged', 'lost', 'retired'];
 export const TAG_SOURCES = ['generated', 'imported'];
@@ -10,6 +10,9 @@ export const CUSTODY_EVENT_TYPES = [
   'gate_in', 'move', 'gate_out', 'tag_replaced', 'tag_damaged', 'tag_lost',
   'tag_retired', 'tag_restored', 'sack_damaged', 'sack_lost',
 ];
+// How a custody event was captured. 'scan' = that tag itself was scanned.
+// Range methods bind many tags at once from a first and a last tag.
+export const CUSTODY_METHODS = ['scan', 'range_scan', 'range_typed'];
 export const TRANSACTION_TYPES = ['payment', 'adjustment', 'refund'];
 export const PAYMENT_METHODS = ['cash', 'gcash', 'bank'];
 export const ADDED_FEE_CHARGED_PER = ['sack', 'batch', 'sack_per_month'];

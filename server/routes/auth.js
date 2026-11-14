@@ -20,12 +20,13 @@ function sessionView(user, coop) {
     cooperativeName: coop?.name ?? null,
     facilityName: coop?.facilityName ?? null,
     mustChangePassword: user.mustChangePassword,
+    features: coop?.subscription?.enabledFeatures ?? [],
   };
 }
 
 async function loadCooperative(user) {
   if (!user.cooperativeId) return null;
-  return Cooperative.findById(user.cooperativeId).select('name facilityName status').lean();
+  return Cooperative.findById(user.cooperativeId).select('name facilityName status subscription.enabledFeatures').lean();
 }
 
 // Sign in with an email or a mobile number.

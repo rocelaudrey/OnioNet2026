@@ -12,6 +12,8 @@ const tagCountSchema = new mongoose.Schema(
     finishedAt: { type: Date, default: null },
     scannedTagIds: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Tag' }], default: [] },
     unknownCodes: { type: [String], default: [] },
+    // Saved when the count is finished, so the report does not change later.
+    result: { type: mongoose.Schema.Types.Mixed, default: null },
   },
   { timestamps: true },
 );

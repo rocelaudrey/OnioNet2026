@@ -10,6 +10,11 @@ import cooperativeRoutes from './routes/cooperative.js';
 import quadrantRoutes from './routes/quadrants.js';
 import memberRoutes from './routes/members.js';
 import userRoutes from './routes/users.js';
+import tagRoutes from './routes/tags.js';
+import tagLotRoutes from './routes/tagLots.js';
+import tagCountRoutes from './routes/tagCounts.js';
+import batchRoutes from './routes/batches.js';
+import custodyRoutes from './routes/custody.js';
 import * as lists from './routes/lists.js';
 
 const app = express();
@@ -33,9 +38,12 @@ api.use('/cooperative', coopTeam, cooperativeRoutes);
 api.use('/quadrants', coopTeam, quadrantRoutes);
 api.use('/users', requireRole(ROLES.COOP_ADMIN), userRoutes);
 api.use('/members', coopTeam, memberRoutes);
-api.use('/batches', coopTeam, lists.batches);
+api.use('/batches', coopTeam, batchRoutes);
+api.use('/custody', coopTeam, custodyRoutes);
 api.use('/sacks', coopTeam, lists.sacks);
-api.use('/tags', coopTeam, lists.tags);
+api.use('/tags/reconciliation', coopTeam, tagCountRoutes); // before /tags/:id
+api.use('/tags', coopTeam, tagRoutes);
+api.use('/tag-lots', coopTeam, tagLotRoutes);
 api.use('/transactions', coopTeam, lists.transactions);
 
 app.use('/api', api);

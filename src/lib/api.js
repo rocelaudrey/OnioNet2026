@@ -1,9 +1,10 @@
 // Thin wrapper around fetch for the /api routes. The session lives in an
 // httpOnly cookie, so no token is handled in browser code.
 export class ApiError extends Error {
-  constructor(message, status) {
+  constructor(message, status, details) {
     super(message);
     this.status = status;
+    this.details = details;
   }
 }
 
@@ -20,6 +21,6 @@ export async function api(path, { method = 'GET', body } = {}) {
     throw new ApiError('Cannot reach the server. Check your connection.', 0);
   }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(data.error || 'Something went wrong. Please try again.', res.status);
+  if (!res.ok) throw new ApiError(data.error || 'Something went wrong. Please try again.', res.status, data.details);
   return data;
 }

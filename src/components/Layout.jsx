@@ -6,12 +6,15 @@ import { useAuth } from '../lib/auth.jsx';
 
 function Logo() {
   return (
-    <div className="leading-tight">
-      <p className="text-xl font-semibold">
-        <span className="text-brand-purple">Onio</span>
-        <span className="text-brand-green">Net</span>
-      </p>
-      <p className="text-xs text-muted">Cold Storage</p>
+    <div className="flex items-center gap-2.5">
+      <img src="/logo.png" alt="" className="h-9 w-9" />
+      <div className="leading-tight">
+        <p className="text-xl font-semibold">
+          <span className="text-brand-purple">Onio</span>
+          <span className="text-brand-green">Net</span>
+        </p>
+        <p className="text-xs text-muted">Cold Storage</p>
+      </div>
     </div>
   );
 }
@@ -65,12 +68,12 @@ export default function Layout() {
   return (
     <div className="min-h-screen">
       {/* Desktop: fixed sidebar */}
-      <aside className="fixed inset-y-0 left-0 hidden w-[220px] border-r border-line bg-white md:block">
+      <aside className="fixed inset-y-0 left-0 hidden w-[220px] border-r border-line bg-white md:block print:hidden">
         <Sidebar />
       </aside>
 
       {/* Mobile: top bar with hamburger menu */}
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line bg-white px-4 py-3 md:hidden">
+      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line bg-white px-4 py-3 md:hidden print:hidden">
         <Logo />
         <button
           type="button"
@@ -98,9 +101,9 @@ export default function Layout() {
         </div>
       )}
 
-      <div className="md:ml-[220px]">
+      <div className="md:ml-[220px] print:ml-0">
         {/* Header: where you are signed in, and as whom */}
-        <div className="flex items-center justify-between gap-4 border-b border-line bg-white px-4 py-3 md:px-8">
+        <div className="flex items-center justify-between gap-4 border-b border-line bg-white px-4 py-3 md:px-8 print:hidden">
           <p className="truncate text-sm font-medium">{user.facilityName || user.cooperativeName || 'OnioNet Platform'}</p>
           <div className="flex min-w-0 items-center gap-3">
             <div className="min-w-0 text-right leading-tight">
@@ -112,7 +115,7 @@ export default function Layout() {
             </span>
           </div>
         </div>
-        <main className="px-4 py-6 md:px-8">
+        <main className="px-4 py-6 md:px-8 print:p-0">
           <Outlet />
         </main>
       </div>

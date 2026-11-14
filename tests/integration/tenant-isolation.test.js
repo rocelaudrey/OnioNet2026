@@ -150,13 +150,14 @@ describe('HTTP API', () => {
     const res = await request(app).post('/api/members').set('Cookie', cookieFor(A.staff))
       .send({ cooperativeId: String(B.coop._id), tier: 'guest', firstName: 'Maria', lastName: 'Santos' })
       .expect(201);
-    expect(res.body.member.cooperativeId).toBe(String(A.coop._id));
+    const id = res.body.member.id;
+    expect(String((await raw('Member', id)).cooperativeId)).toBe(String(A.coop._id));
     expect(res.body.member.memberNo).toBe('ALP-M-0002');
     expect(await countB()).toBe(before);
 
-    await request(app).patch(`/api/members/${res.body.member._id}`).set('Cookie', cookieFor(A.staff))
+    await request(app).patch(`/api/members/${id}`).set('Cookie', cookieFor(A.staff))
       .send({ cooperativeId: String(B.coop._id), firstName: 'Mary' }).expect(200);
-    const saved = await raw('Member', res.body.member._id);
+    const saved = await raw('Member', id);
     expect(String(saved.cooperativeId)).toBe(String(A.coop._id));
     expect(saved.firstName).toBe('Mary');
   });

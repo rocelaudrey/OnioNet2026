@@ -30,9 +30,12 @@ export default function Login() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm overflow-hidden rounded-xl bg-white shadow-sm">
-        <div className="bg-gradient-to-r from-brand-green to-brand-purple px-6 py-6 text-white">
-          <p className="text-2xl font-semibold">OnioNet</p>
-          <p className="text-sm opacity-90">Cold Storage</p>
+        <div className="flex items-center gap-3 bg-gradient-to-r from-brand-green to-brand-purple px-6 py-6 text-white">
+          <img src="/logo-white.png" alt="" className="h-12 w-12" />
+          <div>
+            <p className="text-2xl font-semibold leading-tight">OnioNet</p>
+            <p className="text-sm opacity-90">Cold Storage</p>
+          </div>
         </div>
         <form onSubmit={onSubmit} className="space-y-4 p-6">
           <h1 className="text-base">Sign in</h1>
