@@ -14,6 +14,9 @@ import Release from './pages/inventory/Release.jsx';
 import ReleaseSlip from './pages/inventory/ReleaseSlip.jsx';
 import Move from './pages/inventory/Move.jsx';
 import Tags from './pages/tags/Tags.jsx';
+import Transactions from './pages/transactions/Transactions.jsx';
+import Receipt from './pages/transactions/Receipt.jsx';
+import PlanPrint from './pages/transactions/PlanPrint.jsx';
 import TagDetail from './pages/tags/TagDetail.jsx';
 import PrintSheet from './pages/tags/PrintSheet.jsx';
 import TagCountPage from './pages/tags/TagCountPage.jsx';
@@ -21,7 +24,7 @@ import { navFor } from './lib/nav.js';
 import { useAuth } from './lib/auth.jsx';
 
 // Pages that are built. Everything else in the nav shows a placeholder.
-const BUILT = { '/settings': <Settings />, '/farmers': <Farmers />, '/qr-tags': <Tags />, '/inventory': <Inventory /> };
+const BUILT = { '/settings': <Settings />, '/farmers': <Farmers />, '/qr-tags': <Tags />, '/inventory': <Inventory />, '/transactions': <Transactions /> };
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
@@ -56,10 +59,12 @@ export default function App() {
             <Route path="/inventory/move" element={<Move />} />
             <Route path="/inventory/releases/:releaseNo" element={<ReleaseSlip />} />
             <Route path="/inventory/:id/receive" element={<Receive />} />
+            <Route path="/inventory/:id/plan" element={<PlanPrint />} />
             <Route path="/inventory/:id/release/:releaseNo" element={<Release />} />
             <Route path="/inventory/:id" element={<BatchDetail />} />
           </>
         )}
+        {pages.some((item) => item.to === '/transactions') && <Route path="/transactions/:id" element={<Receipt />} />}
         {pages.some((item) => item.to === '/qr-tags') && (
           <>
             <Route path="/qr-tags/lots/:id/print" element={<PrintSheet />} />

@@ -7,7 +7,13 @@ import { Cooperative } from '../models/Cooperative.js';
 import { BATCH_STATUSES } from '../../shared/statuses.js';
 import { notFound } from '../middleware/errors.js';
 import { capacityOverview, suggestQuadrant } from '../services/capacity.js';
+import { loadAccounts } from '../services/fees.js';
+import { Transaction } from '../models/Transaction.js';
+import { transactionView } from './transactions.js';
 import { cancelIntake, finishReceiving, startIntake, updateBatch } from '../services/batches.js';
+import { cancelPlan, createPlan } from '../services/plans.js';
+import { requireRole } from '../middleware/auth.js';
+import { ROLES } from '../lib/roles.js';
 
 const router = Router();
 const PAGE_SIZE = 50;
@@ -74,8 +80,14 @@ async function listBatches(body = {}) {
       .populate('memberId', 'firstName lastName memberNo').lean(),
     Batch.countDocuments(filter),
   ]);
-  const counts = await sackCounts(batches.map((b) => b._id));
-  return { batches: batches.map((b) => view(b, counts)), total, page, pageSize: PAGE_SIZE };
+  const [counts, accounts] = await Promise.all([sackCounts(batches.map((b) => b._id)), loadAccounts(batches)]);
+  return {
+    batches: batches.map((b) => {
+      const a = accounts.get(String(b._id));
+      return { ...view(b, counts), balanceCentavos: a.balanceCentavos, planStatus: a.plan?.status ?? null };
+    }),
+    total, page, pageSize: PAGE_SIZE,
+  };
 }
 
 router.get('/', async (req, res) => {
@@ -120,7 +132,7 @@ router.post('/', async (req, res) => {
 async function detail(id) {
   const batch = await Batch.findOne({ _id: id }).populate('memberId', 'firstName lastName memberNo').populate('receivedBy', 'name').lean();
   if (!batch) throw notFound('Delivery');
-  const [counts, sacks, releases, gateOuts] = await Promise.all([
+  const [counts, sacks, releases, gateOuts, accounts, transactions] = await Promise.all([
     sackCounts([batch._id]),
     Sack.find({ batchId: batch._id }).sort({ sackNo: -1 }).limit(2000)
       .populate('currentTagId', 'code').populate('quadrantId', 'code').lean(),
@@ -131,6 +143,9 @@ async function detail(id) {
     ]),
     // A released sack no longer has a tag; show the one it left with.
     CustodyEvent.find({ batchId: batch._id, type: 'gate_out' }).select('sackId tagId').populate('tagId', 'code').lean(),
+    loadAccounts([batch]),
+    Transaction.find({ batchId: batch._id }).sort({ paidAt: -1, _id: -1 })
+      .populate('recordedBy', 'name').populate('batchId', 'batchNo').populate('memberId', 'firstName lastName').lean(),
   ]);
   const tagAtRelease = new Map(gateOuts.map((e) => [String(e.sackId), e.tagId]));
   return {
@@ -139,6 +154,8 @@ async function detail(id) {
       receivedByName: batch.receivedBy?.name ?? '',
       feeTerms: batch.feeTerms,
     },
+    account: accounts.get(String(batch._id)),
+    transactions: transactions.map(transactionView),
     releases: releases.map((r) => ({ releaseNo: r._id, sacks: r.sacks, at: r.at, staff: r.staff })),
     sacks: sacks.map((s) => {
       const tag = s.currentTagId ?? tagAtRelease.get(String(s._id)) ?? null;
@@ -161,6 +178,18 @@ router.patch('/:id', async (req, res) => {
 
 router.post('/:id/finish-receiving', async (req, res) => {
   await finishReceiving(req.params.id, { acceptShortfall: req.body?.acceptShortfall === true });
+  res.json(await detail(req.params.id));
+});
+
+// Installment plans are set up and cancelled by the Cooperative Admin.
+router.post('/:id/payment-plan', requireRole(ROLES.COOP_ADMIN), async (req, res) => {
+  const result = await createPlan(req.params.id, req.body);
+  if (result.dryRun) return res.json(result);
+  res.status(201).json(await detail(req.params.id));
+});
+
+router.post('/:id/payment-plan/cancel', requireRole(ROLES.COOP_ADMIN), async (req, res) => {
+  await cancelPlan(req.params.id, req.body?.reason);
   res.json(await detail(req.params.id));
 });
 

@@ -11,6 +11,7 @@ import { HttpError, notFound } from '../middleware/errors.js';
 import { assertFeature } from '../middleware/features.js';
 import { hashPassword, temporaryPassword } from '../lib/password.js';
 import { recordAudit } from '../services/audit.js';
+import { loadAccounts } from '../services/fees.js';
 import { nextNumber } from '../services/sequences.js';
 
 const router = Router();
@@ -159,12 +160,34 @@ const portalUser = (memberId) => User.findOne({ memberId, role: ROLES.MEMBER });
 router.get('/:id', async (req, res) => {
   const member = await Member.findOne({ _id: req.params.id }).lean();
   if (!member) throw notFound('Farmer');
-  const [user, batches, sacksStored] = await Promise.all([
+  const [user, deliveries, sacksStored] = await Promise.all([
     portalUser(member._id).lean(),
-    Batch.countDocuments({ memberId: member._id, status: { $ne: 'cancelled' } }),
+    Batch.find({ memberId: member._id, status: { $ne: 'cancelled' } }).sort({ receivedAt: -1 }).lean(),
     Sack.countDocuments({ memberId: member._id, status: 'stored' }),
   ]);
-  res.json({ member: view(member), portal: portalView(user), storage: { batches, sacksStored } });
+  const accounts = await loadAccounts(deliveries);
+  const stored = await Sack.aggregate([
+    { $match: { memberId: member._id, status: 'stored' } },
+    { $group: { _id: '$batchId', count: { $sum: 1 } } },
+  ]);
+  const storedBy = new Map(stored.map((r) => [String(r._id), r.count]));
+  const rows = deliveries.map((b) => {
+    const a = accounts.get(String(b._id));
+    return {
+      id: b._id, batchNo: b.batchNo, status: b.status, receivedAt: b.receivedAt, contractEnd: b.contractEnd,
+      sacksStored: storedBy.get(String(b._id)) ?? 0,
+      totalCentavos: a.totalCentavos, paidCentavos: a.paidCentavos + a.adjustedCentavos - a.refundedCentavos, balanceCentavos: a.balanceCentavos,
+      planStatus: a.plan?.status ?? null,
+    };
+  });
+  const sum = (key) => rows.reduce((total, r) => total + r[key], 0);
+  res.json({
+    member: view(member),
+    portal: portalView(user),
+    storage: { batches: deliveries.length, sacksStored },
+    deliveries: rows,
+    account: { totalCentavos: sum('totalCentavos'), paidCentavos: sum('paidCentavos'), balanceCentavos: sum('balanceCentavos') },
+  });
 });
 
 router.patch('/:id', async (req, res) => {

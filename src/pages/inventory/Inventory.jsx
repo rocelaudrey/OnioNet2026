@@ -6,10 +6,11 @@ import { PageHeader } from '../../components/PageHeader.jsx';
 import { StatCard } from '../../components/StatCard.jsx';
 import { Button, CapacityBar, Notice, Table, Td, inputClass } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
-import { date, number } from '../../lib/format.js';
+import { date, formatPHP, number } from '../../lib/format.js';
 import { useLoad } from '../../lib/useLoad.js';
 import IntakeForm from './IntakeForm.jsx';
 import { BATCH_STATUS, BatchStatusBadge } from './labels.jsx';
+import { PlanBadge } from '../transactions/labels.jsx';
 
 export default function Inventory() {
   const navigate = useNavigate();
@@ -89,7 +90,7 @@ export default function Inventory() {
         {loading && <p className="py-6 text-center text-sm text-muted">Loading…</p>}
 
         {data && data.batches.length > 0 && (
-          <Table minWidth={760} columns={['Delivery No.', 'Owner', 'Received', 'Sacks in storage', 'Contract ends', 'Status']}>
+          <Table minWidth={860} columns={['Delivery No.', 'Owner', 'Received', 'Sacks in storage', 'Contract ends', 'Balance', 'Status']}>
             {data.batches.map((b) => (
               <tr
                 key={b.id} tabIndex={0} role="link" aria-label={`Open delivery ${b.batchNo}`}
@@ -104,6 +105,10 @@ export default function Inventory() {
                   {b.status === 'receiving' ? `${number(b.sacksReceived)} of ${number(b.declaredSackCount)} scanned` : `${number(b.sacksStored)} of ${number(b.sacksReceived)}`}
                 </Td>
                 <Td className="whitespace-nowrap">{date(b.contractEnd)}</Td>
+                <Td className={`whitespace-nowrap ${b.balanceCentavos > 0 ? 'font-medium text-critical' : 'text-muted'}`}>
+                  {b.ownerType === 'coop_owned' ? '' : b.balanceCentavos > 0 ? formatPHP(b.balanceCentavos) : 'Paid'}
+                  {b.planStatus && <span className="ml-2"><PlanBadge status={b.planStatus} /></span>}
+                </Td>
                 <Td><BatchStatusBadge batch={b} /></Td>
               </tr>
             ))}

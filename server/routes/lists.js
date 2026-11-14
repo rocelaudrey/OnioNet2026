@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { Sack } from '../models/Sack.js';
-import { Transaction } from '../models/Transaction.js';
 
 // Plain read-only lists for now. Filters, detail pages, fees, and the custody
 // actions are built in the feature phases (see docs/PROPOSAL.md).
@@ -10,4 +9,3 @@ const list = (Model, key, sort) => async (req, res) => {
 };
 
 export const sacks = Router().get('/', list(Sack, 'sacks', { gateInAt: -1 }));
-export const transactions = Router().get('/', list(Transaction, 'transactions', { paidAt: -1 }));

@@ -38,6 +38,31 @@ const batchSchema = new mongoose.Schema(
     },
     status: { type: String, enum: BATCH_STATUSES, default: 'receiving' },
     notes: { type: String, trim: true },
+    // Installment ("layaway") plan for paying the balance. Progress is worked
+    // out by the fee service when read, never stored.
+    paymentPlan: {
+      type: new mongoose.Schema({
+        createdAt: { type: Date, required: true },
+        createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+        createdByName: { type: String, required: true },
+        frequency: { type: String, enum: ['monthly', 'every_2_weeks', 'weekly'], required: true },
+        installments: {
+          type: [new mongoose.Schema({
+            dueDate: { type: Date, required: true },
+            amountCentavos: { type: Number, required: true, min: 1, validate: Number.isInteger },
+          }, { _id: false })],
+          required: true,
+        },
+        notes: { type: String, trim: true },
+        cancelledAt: { type: Date, default: null },
+        cancelledByName: { type: String },
+        cancelReason: { type: String, trim: true },
+      }, { _id: false }),
+      default: null,
+    },
+    // Bumped by every money change, so two payments on one delivery at the
+    // same moment conflict and one is retried against the new balance.
+    ledgerVersion: { type: Number, default: 0 },
   },
   { timestamps: true },
 );

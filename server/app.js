@@ -15,6 +15,7 @@ import tagLotRoutes from './routes/tagLots.js';
 import tagCountRoutes from './routes/tagCounts.js';
 import batchRoutes from './routes/batches.js';
 import custodyRoutes from './routes/custody.js';
+import transactionRoutes from './routes/transactions.js';
 import * as lists from './routes/lists.js';
 
 const app = express();
@@ -44,7 +45,7 @@ api.use('/sacks', coopTeam, lists.sacks);
 api.use('/tags/reconciliation', coopTeam, tagCountRoutes); // before /tags/:id
 api.use('/tags', coopTeam, tagRoutes);
 api.use('/tag-lots', coopTeam, tagLotRoutes);
-api.use('/transactions', coopTeam, lists.transactions);
+api.use('/transactions', coopTeam, transactionRoutes);
 
 app.use('/api', api);
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found.' }));

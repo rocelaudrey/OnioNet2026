@@ -1,13 +1,16 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Package, Pencil } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, Package, Pencil, Plus } from 'lucide-react';
 import { Card, EmptyState } from '../../components/Card.jsx';
-import { Badge, Button, Modal, Notice, TextField } from '../../components/ui.jsx';
+import { Badge, Button, Modal, Notice, Table, Td, TextField } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
-import { date, dateTime, number } from '../../lib/format.js';
+import { date, dateTime, formatPHP, number } from '../../lib/format.js';
 import { useLoad, useSave } from '../../lib/useLoad.js';
 import FarmerForm from './FarmerForm.jsx';
 import { StatusBadge, TierBadge } from './badges.jsx';
+import { BatchStatusBadge } from '../inventory/labels.jsx';
+import RecordPayment from '../transactions/RecordPayment.jsx';
+import { BalanceText, PlanBadge } from '../transactions/labels.jsx';
 
 function Row({ label, children }) {
   return (
@@ -124,6 +127,8 @@ export default function FarmerDetail() {
   const { id } = useParams();
   const { data, error, loading, reload } = useLoad(`/members/${id}`);
   const [editing, setEditing] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const navigate = useNavigate();
 
   const back = (
     <Link to="/farmers" className="mb-4 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
@@ -133,7 +138,7 @@ export default function FarmerDetail() {
   if (loading) return <>{back}<p className="text-sm text-muted">Loading…</p></>;
   if (error) return <>{back}<Notice>{error}</Notice></>;
 
-  const { member, portal, storage } = data;
+  const { member, portal, storage, deliveries = [], account } = data;
   const address = [member.address.barangay, member.address.municipality, member.address.province].filter(Boolean).join(', ');
 
   return (
@@ -166,18 +171,42 @@ export default function FarmerDetail() {
 
         <LoginCard member={member} portal={portal} onChange={reload} />
 
-        <Card title="Storage" className="lg:col-span-3">
-          {storage.batches === 0 ? (
-            <EmptyState icon={Package} title="No deliveries yet" detail="This farmer's batches, sacks, and fees will appear here once a delivery is received." />
+        <Card className="lg:col-span-3">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base">Deliveries and Balance</h2>
+              <p className="text-xs text-muted">{number(storage.sacksStored)} sacks in storage across {number(storage.batches)} {storage.batches === 1 ? 'delivery' : 'deliveries'}</p>
+            </div>
+            {deliveries.length > 0 && <Button onClick={() => setPaying(true)}><Plus size={16} /> Record Payment</Button>}
+          </div>
+          {deliveries.length === 0 ? (
+            <EmptyState icon={Package} title="No deliveries yet" detail="This farmer's deliveries, sacks, and fees will appear here once a delivery is received." />
           ) : (
-            <dl className="grid grid-cols-2 gap-4">
-              <div><dt className="text-xs text-muted">Deliveries</dt><dd className="text-2xl font-bold">{number(storage.batches)}</dd></div>
-              <div><dt className="text-xs text-muted">Sacks in storage</dt><dd className="text-2xl font-bold">{number(storage.sacksStored)}</dd></div>
-            </dl>
+            <>
+              <Table minWidth={720} columns={['Delivery No.', 'Received', 'Sacks stored', 'Status', 'Charges', 'Balance']}>
+                {deliveries.map((d) => (
+                  <tr
+                    key={d.id} tabIndex={0} role="link" aria-label={`Open delivery ${d.batchNo}`}
+                    onClick={() => navigate(`/inventory/${d.id}`)}
+                    onKeyDown={(e) => e.key === 'Enter' && navigate(`/inventory/${d.id}`)}
+                    className="cursor-pointer hover:bg-page focus:bg-page focus:outline-none"
+                  >
+                    <Td className="whitespace-nowrap text-muted">{d.batchNo}</Td>
+                    <Td className="whitespace-nowrap">{date(d.receivedAt)}</Td>
+                    <Td>{number(d.sacksStored)}</Td>
+                    <Td><BatchStatusBadge batch={{ status: d.status, overdue: d.sacksStored > 0 && new Date(d.contractEnd) < new Date() }} /></Td>
+                    <Td className="whitespace-nowrap">{formatPHP(d.totalCentavos)}</Td>
+                    <Td className="whitespace-nowrap"><BalanceText centavos={d.balanceCentavos} format={formatPHP} />{d.planStatus && <span className="ml-2"><PlanBadge status={d.planStatus} /></span>}</Td>
+                  </tr>
+                ))}
+              </Table>
+              <p className="mt-4 text-right text-sm">Total balance: <BalanceText centavos={account.balanceCentavos} format={formatPHP} /></p>
+            </>
           )}
         </Card>
       </div>
 
+      {paying && <RecordPayment farmer={member} onClose={() => setPaying(false)} onDone={(t) => navigate(`/transactions/${t.id}`)} />}
       {editing && <FarmerForm farmer={member} onClose={() => setEditing(false)} onDone={() => { setEditing(false); reload(); }} />}
     </>
   );

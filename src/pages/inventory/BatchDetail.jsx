@@ -7,6 +7,8 @@ import { api } from '../../lib/api.js';
 import { date, dateTime, formatPHP, number } from '../../lib/format.js';
 import { useLoad, useSave } from '../../lib/useLoad.js';
 import { BatchStatusBadge, CHARGED_PER, SACK_STATUS } from './labels.jsx';
+import AccountCard from '../transactions/AccountCard.jsx';
+import { PlanBadge } from '../transactions/labels.jsx';
 
 function Row({ label, children }) {
   return (
@@ -76,7 +78,7 @@ export default function BatchDetail() {
   if (loading) return <>{back}<p className="text-sm text-muted">Loading…</p></>;
   if (error) return <>{back}<Notice>{error}</Notice></>;
 
-  const { batch, sacks, releases = [] } = data;
+  const { batch, sacks, releases = [], account, transactions = [] } = data;
   const canRelease = ['stored', 'partly_released'].includes(batch.status) && batch.sacksStored > 0;
   const onRelease = () => release.run(async () => {
     const { releaseNo } = await api('/custody/releases', { method: 'POST', body: { batchId: id } });
@@ -98,6 +100,7 @@ export default function BatchDetail() {
           <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
             <span>{batch.batchNo}</span>
             <BatchStatusBadge batch={batch} />
+            {account?.plan && <PlanBadge status={account.plan.status} />}
             {batch.ownerType === 'guest' && <Badge color="orange">Guest</Badge>}
           </div>
         </div>
@@ -151,6 +154,8 @@ export default function BatchDetail() {
           )}
           <p className="mt-3 text-xs text-muted">These are the rates in force when the delivery was received. Later changes in Settings do not affect it.</p>
         </Card>
+
+        {account && <AccountCard batch={batch} account={account} transactions={transactions} onChanged={setData} />}
 
         {releases.length > 0 && (
           <Card title="Releases" className="lg:col-span-3">

@@ -7,18 +7,11 @@ import { HttpError, notFound } from '../middleware/errors.js';
 import { recordAudit } from './audit.js';
 import { capacityOverview } from './capacity.js';
 import { nextNumber } from './sequences.js';
+import { addMonths } from '../lib/dates.js';
+
+export { addMonths };
 
 const n = (v) => v.toLocaleString('en-US');
-
-// Same day N months later; the 31st falls back to the month's last day.
-export function addMonths(date, months) {
-  const out = new Date(date);
-  const day = out.getDate();
-  out.setDate(1);
-  out.setMonth(out.getMonth() + months);
-  out.setDate(Math.min(day, new Date(out.getFullYear(), out.getMonth() + 1, 0).getDate()));
-  return out;
-}
 
 // The fees a delivery comes in with, copied from Settings at intake so that
 // later setting changes never alter a delivery already received.

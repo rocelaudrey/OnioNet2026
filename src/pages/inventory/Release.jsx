@@ -5,7 +5,7 @@ import { Card } from '../../components/Card.jsx';
 import Scanner from '../../components/Scanner.jsx';
 import { Button, Notice } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
-import { number } from '../../lib/format.js';
+import { formatPHP, number } from '../../lib/format.js';
 import { useLoad } from '../../lib/useLoad.js';
 
 const newId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -27,7 +27,7 @@ export default function Release() {
   if (loading) return <>{back}<p className="text-sm text-muted">Loading…</p></>;
   if (error) return <>{back}<Notice>{error}</Notice></>;
 
-  const { batch, releases = [] } = data;
+  const { batch, releases = [], account } = data;
   // Reopening a release picks up the sacks already scanned out under it.
   const released = progress?.released ?? releases.find((r) => r.releaseNo === releaseNo)?.sacks ?? 0;
   const remaining = progress?.remaining ?? batch.sacksStored;
@@ -57,6 +57,14 @@ export default function Release() {
         <p className="text-sm text-muted">{batch.ownerName} · {batch.batchNo} · {releaseNo}</p>
       </div>
 
+      {account?.balanceCentavos > 0 && (
+        <div className="mb-4">
+          <Notice kind="warning">
+            This delivery has an unpaid balance of {formatPHP(account.balanceCentavos)}
+            {account.plan?.status === 'late' ? `, and ${account.plan.lateCount} ${account.plan.lateCount === 1 ? 'installment is' : 'installments are'} late` : account.plan ? ' on an installment plan' : ''}. <Link className="font-medium underline" to={`/inventory/${id}`}>Record a payment</Link> before releasing, if your cooperative requires it.
+          </Notice>
+        </div>
+      )}
       <div className="mb-4 grid grid-cols-2 gap-4">
         <div className="rounded-xl bg-white p-5 shadow-sm">
           <p className="text-xs text-muted">Released now</p>

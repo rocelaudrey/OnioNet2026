@@ -298,6 +298,27 @@ The custody record. Append-only: no route or code path can edit or delete one.
 
 Indexed by tag, by sack, and by date, giving the full history per tag and per sack.
 
+### How fees are computed (`server/services/fees.js`)
+
+All amounts are worked out when read from the rates copied onto the delivery, each sack's gate-in and gate-out times, and the current time. Nothing is stored or updated by a scheduled job.
+
+| Charge | Amount |
+|---|---|
+| Storage fee | rate × every sack received (covers the contract period) |
+| Added fee, per sack | rate × sacks received |
+| Added fee, per delivery | rate once, when the delivery has at least one sack |
+| Added fee, per sack per month | rate × months each sack is stored; every started month counts, at least one |
+| Member discount | % off the storage fee and added fees, rounded to the nearest centavo; never on the overdue fee; members only |
+| Overdue fee | rate × days each sack stays after the contract end; every started day counts; stops when the sack is released |
+
+Balance = charges − payments − waivers or discounts + refunds, ignoring voided entries. A payment or waiver cannot exceed the balance; a refund cannot exceed what was paid. Waivers, refunds, and voids are for the Cooperative Admin; a waiver needs a reason. Releasing sacks is not blocked by an unpaid balance; the release screen shows a warning.
+
+### Installment plans (layaway terms)
+
+Stored on the delivery as `paymentPlan`: created by and when, frequency (monthly, every 2 weeks, weekly), and the installments (due date, amount). Only the Cooperative Admin sets up or cancels a plan (cancelling needs a reason). The current balance is split evenly into 2 to 12 installments, with leftover centavos on the last one. The farmer can still pay any amount at any time.
+
+Progress is worked out when read by the fee service (`planProgress`): money paid, waived, or discounted after the plan was set up, minus refunds and ignoring voided entries, is applied to installments in due-date order. An installment is late once its whole due day has passed. Charges added after the plan (such as new overdue fees) are shown as not covered. Late plans are flagged on the delivery, farmer, inventory list, Transactions page, receipt, and release screen. Releasing sacks is never blocked; it warns.
+
 ### Transaction
 
 Money that actually moved. Charges are not stored here; they come from the fee service.

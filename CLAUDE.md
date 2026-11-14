@@ -137,3 +137,5 @@ Dashboard, Inventory, QR Tags, Farmers, Transactions, Reports, Audit Logs, Setti
 - Scanned or typed tag text is always resolved with `resolveTag()` (`server/services/tags.js`). Custody actions must not pass `allowTyped`; only lookups and tag counts may.
 - Phone scanning uses the shared `Scanner` component (`src/components/Scanner.jsx`). Print sheets are drawn in the browser and printed with the browser's print dialog; hide app chrome with Tailwind `print:` classes.
 - Logo files are in `public/` (`logo.png`, `logo-white.png` for dark or gradient backgrounds, `favicon.png`).
+- Every peso amount comes from the fee service, `server/services/fees.js` (`computeCharges`, `settle`, `loadAccounts`). Never compute fees or balances anywhere else, including the frontend; the UI only displays what the API returns.
+- Money changes (payments, waivers, refunds, voids) go through `server/services/transactions.js`, which checks the balance inside a transaction and bumps `Batch.ledgerVersion` so concurrent payments cannot overpay.

@@ -21,6 +21,7 @@ const transactionSchema = new mongoose.Schema(
       reason: { type: String, trim: true },
     },
     notes: { type: String, trim: true },
+    clientRequestId: { type: String, trim: true }, // stops a double-tapped Save from paying twice
   },
   { timestamps: true },
 );
@@ -29,6 +30,11 @@ transactionSchema.plugin(tenantPlugin);
 transactionSchema.index({ cooperativeId: 1, receiptNo: 1 }, { unique: true });
 transactionSchema.index({ cooperativeId: 1, batchId: 1 });
 transactionSchema.index({ cooperativeId: 1, memberId: 1, paidAt: -1 });
+transactionSchema.index({ cooperativeId: 1, paidAt: -1 });
+transactionSchema.index(
+  { cooperativeId: 1, clientRequestId: 1 },
+  { unique: true, partialFilterExpression: { clientRequestId: { $type: 'string' } } },
+);
 
 export const Transaction =
   mongoose.models.Transaction || mongoose.model('Transaction', transactionSchema);
