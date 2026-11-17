@@ -139,3 +139,5 @@ Dashboard, Inventory, QR Tags, Farmers, Transactions, Reports, Audit Logs, Setti
 - Logo files are in `public/` (`logo.png`, `logo-white.png` for dark or gradient backgrounds, `favicon.png`).
 - Every peso amount comes from the fee service, `server/services/fees.js` (`computeCharges`, `settle`, `loadAccounts`). Never compute fees or balances anywhere else, including the frontend; the UI only displays what the API returns.
 - Money changes (payments, waivers, refunds, voids) go through `server/services/transactions.js`, which checks the balance inside a transaction and bumps `Batch.ledgerVersion` so concurrent payments cannot overpay.
+- Totals shown in more than one place (dashboard, Transactions, Inventory) come from shared functions: `moneySummary()` (`server/services/summaries.js`) and `capacityOverview()` (`server/services/capacity.js`). Reuse them; do not recount.
+- Recharts is large, so pages with charts are loaded with `React.lazy` to keep the gate-scanning screens light on phones.

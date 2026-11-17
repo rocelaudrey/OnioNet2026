@@ -1,11 +1,16 @@
 import {
-  Package, Warehouse, Users, QrCode, Activity, BarChart3, Building2, CalendarClock, Receipt,
+  Package, Warehouse, Building2, CalendarClock, Receipt,
 } from 'lucide-react';
-import { Card, EmptyState } from '../components/Card.jsx';
 import { StatCard } from '../components/StatCard.jsx';
 import { useAuth } from '../lib/auth.jsx';
+import { Suspense, lazy } from 'react';
 
-// Numbers show "—" until the inventory, tag, and fee features are built.
+// Loaded on its own, so the chart library is not downloaded by phones that
+// only scan tags at the gate.
+const CoopDashboard = lazy(() => import('./dashboard/CoopDashboard.jsx'));
+
+// Cooperative users get the full dashboard. The farmer and Super Admin cards
+// fill in with the farmer portal and Super Admin phases.
 export default function Dashboard() {
   const { user } = useAuth();
   return (
@@ -32,22 +37,7 @@ export default function Dashboard() {
         </div>
       )}
       {(user.role === 'coop_admin' || user.role === 'coop_staff') && (
-        <>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <StatCard label="Sacks in Storage" value="—" icon={Package} color="green" />
-            <StatCard label="Available Space" value="—" icon={Warehouse} color="purple" />
-            <StatCard label="Farmers" value="—" icon={Users} color="orange" />
-            <StatCard label="Tags in Use" value="—" icon={QrCode} color="green" />
-          </div>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card title="Entries and Releases">
-              <EmptyState icon={BarChart3} title="No data yet" detail="Charts appear here once sacks are scanned in and out." />
-            </Card>
-            <Card title="Recent Activity">
-              <EmptyState icon={Activity} title="No activity yet" detail="Scans, moves, and payments will be listed here." />
-            </Card>
-          </div>
-        </>
+        <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}><CoopDashboard /></Suspense>
       )}
     </div>
   );

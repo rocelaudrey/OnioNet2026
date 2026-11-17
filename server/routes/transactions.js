@@ -7,8 +7,9 @@ import { ROLES } from '../lib/roles.js';
 import { PAYMENT_METHODS, TRANSACTION_TYPES } from '../../shared/statuses.js';
 import { requireRole } from '../middleware/auth.js';
 import { notFound } from '../middleware/errors.js';
-import { accountFor, loadAccounts } from '../services/fees.js';
+import { accountFor } from '../services/fees.js';
 import { recordTransaction, voidTransaction } from '../services/transactions.js';
+import { moneySummary } from '../services/summaries.js';
 
 const router = Router();
 const PAGE_SIZE = 50;
@@ -80,47 +81,9 @@ router.post('/search', async (req, res) => {
   res.json(await listTransactions(req.body));
 });
 
-// Numbers for the Transactions page. Collections count payments minus refunds.
+// Numbers for the Transactions page (the dashboard uses the same function).
 router.get('/summary', async (req, res) => {
-  const now = new Date();
-  const startOfDay = new Date(now);
-  startOfDay.setHours(0, 0, 0, 0);
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const collected = async (since) => {
-    const rows = await Transaction.aggregate([
-      { $match: { 'voided.at': null, paidAt: { $gte: since }, type: { $in: ['payment', 'refund'] } } },
-      { $group: { _id: '$type', total: { $sum: '$amountCentavos' } } },
-    ]);
-    const by = Object.fromEntries(rows.map((r) => [r._id, r.total]));
-    return (by.payment ?? 0) - (by.refund ?? 0);
-  };
-  const batches = await Batch.find({ status: { $ne: 'cancelled' }, ownerType: { $ne: 'coop_owned' } }).lean();
-  const accounts = await loadAccounts(batches, { asOf: now });
-  let outstanding = 0;
-  let unpaid = 0;
-  let overdueFees = 0;
-  let latePlans = 0;
-  let lateInstallments = 0;
-  for (const account of accounts.values()) {
-    if (account.plan?.status === 'late') {
-      latePlans += 1;
-      lateInstallments += account.plan.lateCentavos;
-    }
-    if (account.balanceCentavos > 0) {
-      outstanding += account.balanceCentavos;
-      unpaid += 1;
-    }
-    overdueFees += account.overdueCentavos;
-  }
-  res.json({
-    collectedTodayCentavos: await collected(startOfDay),
-    collectedThisMonthCentavos: await collected(startOfMonth),
-    outstandingCentavos: outstanding,
-    unpaidDeliveries: unpaid,
-    overdueFeesCentavos: overdueFees,
-    latePlans,
-    lateInstallmentsCentavos: lateInstallments,
-  });
+  res.json(await moneySummary());
 });
 
 router.post('/', async (req, res) => {
