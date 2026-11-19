@@ -64,7 +64,7 @@ export async function seedCooperative(name, prefix, { capacityLimit = 10000 } = 
     });
     const transaction = await Transaction.create({
       receiptNo: `${prefix}-R-0001`, type: 'payment', batchId: batch._id, memberId: member._id,
-      amountCentavos: 50000, recordedBy: staff._id,
+      amountCentavos: 50000, method: 'cash', recordedBy: staff._id,
     });
     const auditLog = await AuditLog.create({ actorId: admin._id, actorName: admin.name, action: 'create', entityType: 'Member', entityId: member._id });
     const tagCount = await TagCount.create({ countNo: 1, startedBy: staff._id });

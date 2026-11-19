@@ -208,3 +208,39 @@ describe('planProgress', () => {
     expect(planProgress(null, [], { balanceCentavos: 1 })).toBeNull();
   });
 });
+
+describe('manual charges', () => {
+  it('add to the total, are never discounted, and show as their own lines', () => {
+    const charges = computeCharges(batch({ feeTerms: terms({ memberDiscountPercent: 10 }) }), sacks(2, daysAgo(5)), asOf);
+    const account = settle(charges, [
+      { _id: 'h', type: 'charge', chargeKind: 'hauling', amountCentavos: 4000, notes: '₱20 × 2 sacks', paidAt: daysAgo(5) },
+      { _id: 'o', type: 'charge', chargeKind: 'overdue', amountCentavos: 1000, voided: { at: new Date() } },
+      { type: 'payment', amountCentavos: 10000 },
+    ]);
+    expect(account.manualCentavos).toBe(4000);
+    expect(account.totalCentavos).toBe(30000 - 3000 + 4000);
+    expect(account.balanceCentavos).toBe(31000 - 10000);
+    expect(account.lines.at(-1)).toMatchObject({ key: 'charge:h', label: 'Hauling fee', note: '₱20 × 2 sacks', amountCentavos: 4000, manual: true, discountable: false });
+    expect(account.lines.filter((l) => l.manual)).toHaveLength(1); // the voided one is left out
+  });
+
+  it('do not count as money paid toward an installment plan', () => {
+    const plan = { createdAt: new Date(2026, 9, 1), createdByName: 'A', frequency: 'monthly', installments: [{ dueDate: new Date(2026, 10, 1), amountCentavos: 10000 }] };
+    const p = planProgress(plan, [{ type: 'charge', amountCentavos: 50000, createdAt: new Date(2026, 9, 2) }], { balanceCentavos: 60000 }, new Date(2026, 9, 3));
+    expect(p).toMatchObject({ paidCentavos: 0, remainingCentavos: 10000, notCoveredCentavos: 50000 });
+  });
+});
+
+describe('overdue charges added by hand', () => {
+  it('count toward the overdue total but not the built-in daily fee', () => {
+    const charges = { totalCentavos: 10000, overdueCentavos: 500, lines: [] };
+    const a = settle(charges, [
+      { type: 'charge', chargeKind: 'overdue', amountCentavos: 3000 },
+      { type: 'charge', chargeKind: 'hauling', amountCentavos: 2000 },
+      { type: 'charge', chargeKind: 'overdue', amountCentavos: 999, voided: { at: new Date() } },
+    ]);
+    expect(a.autoOverdueCentavos).toBe(500);
+    expect(a.overdueCentavos).toBe(3500);
+    expect(a.totalCentavos).toBe(15000);
+  });
+});

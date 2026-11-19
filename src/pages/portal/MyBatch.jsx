@@ -6,7 +6,7 @@ import { date, dateTime, formatPHP, number } from '../../lib/format.js';
 import { useLoad } from '../../lib/useLoad.js';
 import { BATCH_STATUS, SACK_STATUS } from '../inventory/labels.jsx';
 import { Schedule } from '../transactions/PlanCard.jsx';
-import { METHOD_LABELS, TYPE_LABELS, quantityText } from '../transactions/labels.jsx';
+import { CHARGE_KIND_LABELS, METHOD_LABELS, TYPE_LABELS, amountSign, quantityText } from '../transactions/labels.jsx';
 import { balanceWords } from './MemberHome.jsx';
 
 function Row({ label, children, strong }) {
@@ -41,7 +41,7 @@ export default function MyBatch() {
         </div>
       </div>
 
-      {d.overdue && <div className="mb-4"><Notice>The contract ended on {date(d.contractEnd)}. An overdue fee is added for every day each sack stays.</Notice></div>}
+      {d.overdue && <div className="mb-4"><Notice>The contract ended on {date(d.contractEnd)}. {a?.lines?.find((l) => l.key === 'overdue')?.rateCentavos > 0 ? 'An overdue fee is added for every day each sack stays.' : 'Sacks still in storage may be charged an overdue fee.'}</Notice></div>}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="My Sacks">
@@ -66,7 +66,10 @@ export default function MyBatch() {
               <Row key={l.key} label={<>{l.label} <span className="text-xs">({quantityText(l.quantity, l.unit)} × {formatPHP(l.rateCentavos)})</span></>}>{formatPHP(l.amountCentavos)}</Row>
             ))}
             {a.discountCentavos > 0 && <Row label={`Member discount (${a.discountPercent}%)`}>−{formatPHP(a.discountCentavos)}</Row>}
-            {a.overdueSackDays > 0 && <Row label={<>Overdue fee <span className="text-xs">({quantityText(a.overdueSackDays, 'sack-day')})</span></>}><span className="text-critical">{formatPHP(a.overdueCentavos)}</span></Row>}
+            {a.autoOverdueCentavos > 0 && <Row label={<>Overdue fee <span className="text-xs">({quantityText(a.overdueSackDays, 'sack-day')})</span></>}><span className="text-critical">{formatPHP(a.autoOverdueCentavos)}</span></Row>}
+            {a.lines.filter((l) => l.manual).map((l) => (
+              <Row key={l.key} label={<>{l.label}{l.note && <span className="text-xs"> ({l.note})</span>}</>}>{formatPHP(l.amountCentavos)}</Row>
+            ))}
             <Row label="Total" strong>{formatPHP(a.totalCentavos)}</Row>
             <Row label="Paid">−{formatPHP(a.paidCentavos + a.adjustedCentavos - a.refundedCentavos)}</Row>
             <Row label="Balance" strong><span className={a.balanceCentavos > 0 ? 'text-critical' : 'text-brand-green'}>{balanceWords(a.balanceCentavos)}</span></Row>
@@ -81,15 +84,15 @@ export default function MyBatch() {
           </Card>
         )}
 
-        <Card title="My Payments" className="lg:col-span-2">
-          {d.transactions.length === 0 ? <p className="text-sm text-muted">No payments yet.</p> : (
+        <Card title="My Payments and Charges" className="lg:col-span-2">
+          {d.transactions.length === 0 ? <p className="text-sm text-muted">No payments or charges yet.</p> : (
             <Table minWidth={420} columns={['Date', 'Receipt No.', 'Type', 'Amount']}>
               {d.transactions.map((t) => (
                 <tr key={t.id} className={t.voided ? 'text-muted line-through' : ''}>
                   <Td className="whitespace-nowrap">{date(t.paidAt)}</Td>
                   <Td className="whitespace-nowrap font-mono text-xs">{t.receiptNo}</Td>
-                  <Td>{TYPE_LABELS[t.type]}{t.method && ` (${METHOD_LABELS[t.method]})`}{t.voided && ' · cancelled'}</Td>
-                  <Td className="whitespace-nowrap text-right">{formatPHP(t.amountCentavos)}</Td>
+                  <Td>{t.type === 'charge' ? CHARGE_KIND_LABELS[t.chargeKind] ?? 'Charge' : TYPE_LABELS[t.type]}{t.method && ` (${METHOD_LABELS[t.method]})`}{t.voided && ' · cancelled'}</Td>
+                  <Td className="whitespace-nowrap text-right">{amountSign(t)}{formatPHP(t.amountCentavos)}</Td>
                 </tr>
               ))}
             </Table>

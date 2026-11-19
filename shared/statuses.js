@@ -13,7 +13,9 @@ export const CUSTODY_EVENT_TYPES = [
 // How a custody event was captured. 'scan' = that tag itself was scanned.
 // Range methods bind many tags at once from a first and a last tag.
 export const CUSTODY_METHODS = ['scan', 'range_scan', 'range_typed'];
-export const TRANSACTION_TYPES = ['payment', 'adjustment', 'refund'];
+// 'charge' is a manual charge added by staff (hauling, overdue, other); it raises the balance.
+export const TRANSACTION_TYPES = ['payment', 'adjustment', 'refund', 'charge'];
+export const CHARGE_KINDS = ['hauling', 'overdue', 'other'];
 export const PAYMENT_METHODS = ['cash', 'gcash', 'bank'];
 export const ADDED_FEE_CHARGED_PER = ['sack', 'batch', 'sack_per_month'];
 export const ADDED_FEE_APPLIES_TO = ['every_batch', 'optional'];

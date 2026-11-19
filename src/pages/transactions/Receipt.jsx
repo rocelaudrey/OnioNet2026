@@ -6,9 +6,9 @@ import { api } from '../../lib/api.js';
 import { date, dateTime, formatPHP } from '../../lib/format.js';
 import { useAuth } from '../../lib/auth.jsx';
 import { useLoad, useSave } from '../../lib/useLoad.js';
-import { METHOD_LABELS, TYPE_LABELS } from './labels.jsx';
+import { CHARGE_KIND_LABELS, METHOD_LABELS, TYPE_LABELS } from './labels.jsx';
 
-const TITLES = { payment: 'Payment Receipt', adjustment: 'Fee Adjustment', refund: 'Refund Slip' };
+const TITLES = { payment: 'Payment Receipt', adjustment: 'Fee Adjustment', refund: 'Refund Slip', charge: 'Charge Slip' };
 
 function Line({ label, children }) {
   return (
@@ -91,19 +91,19 @@ export default function Receipt() {
         </header>
 
         <p className="my-6 text-center">
-          <span className="block text-xs text-muted">{t.type === 'refund' ? 'Amount refunded' : t.type === 'adjustment' ? 'Amount waived or discounted' : 'Amount received'}</span>
+          <span className="block text-xs text-muted">{{ refund: 'Amount refunded', adjustment: 'Amount waived or discounted', charge: 'Amount charged' }[t.type] ?? 'Amount received'}</span>
           <span className="text-4xl font-bold">{formatPHP(t.amountCentavos)}</span>
         </p>
 
         <dl>
-          <Line label={t.type === 'refund' ? 'Refunded to' : 'Received from'}>{t.ownerName}</Line>
+          <Line label={{ refund: 'Refunded to', charge: 'Charged to' }[t.type] ?? 'Received from'}>{t.ownerName}</Line>
           {t.memberNo && <Line label="Member No.">{t.memberNo}</Line>}
           <Line label="Delivery No.">{t.batchNo}</Line>
           <Line label="Date">{dateTime(t.paidAt)}</Line>
-          <Line label="Type">{TYPE_LABELS[t.type]}</Line>
+          <Line label="Type">{t.type === 'charge' ? CHARGE_KIND_LABELS[t.chargeKind] ?? 'Charge' : TYPE_LABELS[t.type]}</Line>
           {t.method && <Line label={t.type === 'refund' ? 'Refunded by' : 'Paid by'}>{METHOD_LABELS[t.method]}</Line>}
           {t.referenceNo && <Line label="Reference No.">{t.referenceNo}</Line>}
-          {t.notes && <Line label={t.type === 'adjustment' ? 'Reason' : 'Notes'}>{t.notes}</Line>}
+          {t.notes && <Line label={{ adjustment: 'Reason', charge: 'Details' }[t.type] ?? 'Notes'}>{t.notes}</Line>}
           <Line label="Recorded by">{t.recordedByName}</Line>
           <Line label={`Delivery balance as of ${dateTime(new Date())}`}>{formatPHP(Math.max(0, delivery.balanceCentavos))}</Line>
           {delivery.plan && (

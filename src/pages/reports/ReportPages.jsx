@@ -5,7 +5,7 @@ import { date, dateTime, formatPHP, number } from '../../lib/format.js';
 import { useLoad } from '../../lib/useLoad.js';
 import { BATCH_STATUS } from '../inventory/labels.jsx';
 import { TAG_STATUS } from '../tags/labels.jsx';
-import { METHOD_LABELS, PlanBadge, TYPE_LABELS, quantityText } from '../transactions/labels.jsx';
+import { CHARGE_KIND_LABELS, METHOD_LABELS, PlanBadge, TYPE_LABELS, amountSign, lineText } from '../transactions/labels.jsx';
 import ReportShell, { DateRange, Figures, Loading, Section, defaultRange } from './ReportShell.jsx';
 
 const Empty = ({ children }) => <p className="py-3 text-sm text-muted">{children}</p>;
@@ -101,6 +101,7 @@ export function FeesReport() {
                 ))}
               </Table>
             </div>
+            {data.period.chargedCentavos > 0 && <p className="mt-2 text-xs text-muted">Manual charges added in this period (hauling, overdue, other): {peso(data.period.chargedCentavos)}. These are owed, not collected.</p>}
             {data.period.voidedEntries > 0 && <p className="mt-2 text-xs text-muted">{number(data.period.voidedEntries)} voided {data.period.voidedEntries === 1 ? 'entry is' : 'entries are'} not counted.</p>}
           </Section>
           <Section title="Balances as of today">
@@ -249,14 +250,15 @@ export function StatementBody({ data, signatures = true }) {
           <table className="w-full text-sm">
             <tbody className="divide-y divide-line">
               {/* The discount applies to the lines above it; the overdue fee comes after, undiscounted. */}
-              {[...d.account.lines.filter((l) => l.discountable), 'discount', ...d.account.lines.filter((l) => !l.discountable)].map((l) => (l === 'discount'
+              {[...d.account.lines.filter((l) => l.discountable), 'discount', ...d.account.lines.filter((l) => !l.discountable && (l.key !== 'overdue' || l.amountCentavos > 0))].map((l) => (l === 'discount'
                 ? d.account.discountCentavos > 0 && <tr key="discount"><td className="py-1.5 text-muted">Member discount ({d.account.discountPercent}%)</td><td className="py-1.5 text-right">−{peso(d.account.discountCentavos)}</td></tr>
-                : <tr key={l.key}><td className="py-1.5">{l.label} <span className="text-muted">({quantityText(l.quantity, l.unit)} × {peso(l.rateCentavos)})</span></td><td className="py-1.5 text-right">{peso(l.amountCentavos)}</td></tr>))}
+                : <tr key={l.key}><td className="py-1.5">{l.label}{lineText(l, peso).detail && <span className="text-muted"> ({lineText(l, peso).detail})</span>}{l.manual && l.date && <span className="text-muted"> · {date(l.date)}</span>}</td><td className="py-1.5 text-right">{peso(l.amountCentavos)}</td></tr>))}
               <tr className="font-semibold"><td className="py-1.5">Charges</td><td className="py-1.5 text-right">{peso(d.account.totalCentavos)}</td></tr>
-              {d.transactions.map((t) => (
+              {/* Charges are listed above with the fees; here only money paid, waived, or refunded. */}
+              {d.transactions.filter((t) => t.type !== 'charge').map((t) => (
                 <tr key={t.id} className={t.voided ? 'text-muted line-through' : ''}>
-                  <td className="py-1.5">{date(t.paidAt)} · {TYPE_LABELS[t.type]}{t.method ? ` (${METHOD_LABELS[t.method]})` : ''} · <span className="font-mono text-xs">{t.receiptNo}</span>{t.voided && ' · voided'}</td>
-                  <td className="py-1.5 text-right">{t.type === 'refund' ? '+' : '−'}{peso(t.amountCentavos)}</td>
+                  <td className="py-1.5">{date(t.paidAt)} · {t.type === 'charge' ? CHARGE_KIND_LABELS[t.chargeKind] ?? 'Charge' : TYPE_LABELS[t.type]}{t.method ? ` (${METHOD_LABELS[t.method]})` : ''} · <span className="font-mono text-xs">{t.receiptNo}</span>{t.voided && ' · voided'}</td>
+                  <td className="py-1.5 text-right">{amountSign(t)}{peso(t.amountCentavos)}</td>
                 </tr>
               ))}
               <tr className="font-semibold"><td className="py-1.5">Balance</td><td className="py-1.5 text-right">{owed(d.account.balanceCentavos)}</td></tr>

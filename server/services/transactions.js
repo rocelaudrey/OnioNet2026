@@ -4,14 +4,14 @@ import { Transaction } from '../models/Transaction.js';
 import { getContext } from '../context.js';
 import { ROLES } from '../lib/roles.js';
 import { HttpError, notFound } from '../middleware/errors.js';
-import { PAYMENT_METHODS, TRANSACTION_TYPES } from '../../shared/statuses.js';
+import { CHARGE_KINDS, PAYMENT_METHODS, TRANSACTION_TYPES } from '../../shared/statuses.js';
 import { formatPHP } from '../../shared/money.js';
 import { recordAudit } from './audit.js';
 import { accountFor } from './fees.js';
 import { nextNumber } from './sequences.js';
 import { inTransaction } from './tx.js';
 
-export const TYPE_LABELS = { payment: 'Payment', adjustment: 'Waiver or discount', refund: 'Refund' };
+export const TYPE_LABELS = { payment: 'Payment', adjustment: 'Waiver or discount', refund: 'Refund', charge: 'Charge' };
 const MAX_AMOUNT = 100_000_000; // ₱1,000,000.00
 
 const localDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -36,15 +36,21 @@ export async function recordTransaction(body = {}) {
   const ctx = getContext();
   const { type } = body;
   if (!TRANSACTION_TYPES.includes(type)) throw new HttpError(400, 'Choose a payment, a waiver or discount, or a refund.');
-  if (type !== 'payment' && ctx.role !== ROLES.COOP_ADMIN) {
+  // Staff take payments and add charges; waivers, discounts, and refunds are for the admin.
+  if (!['payment', 'charge'].includes(type) && ctx.role !== ROLES.COOP_ADMIN) {
     throw new HttpError(403, 'Only a Cooperative Admin can record waivers, discounts, and refunds.');
+  }
+  let chargeKind = null;
+  if (type === 'charge') {
+    chargeKind = body.chargeKind;
+    if (!CHARGE_KINDS.includes(chargeKind)) throw new HttpError(400, 'Choose what the charge is for: hauling, overdue, or other.');
   }
   const amount = body.amountCentavos;
   if (!Number.isInteger(amount) || amount < 1 || amount > MAX_AMOUNT) throw new HttpError(400, 'Enter an amount more than ₱0.00.');
 
   let method;
   let referenceNo = String(body.referenceNo ?? '').trim() || undefined;
-  if (type === 'adjustment') {
+  if (type === 'adjustment' || type === 'charge') {
     referenceNo = undefined;
   } else {
     method = body.method;
@@ -53,6 +59,7 @@ export async function recordTransaction(body = {}) {
   }
   const notes = String(body.notes ?? '').trim() || undefined;
   if (type === 'adjustment' && !notes) throw new HttpError(400, 'Enter the reason for this waiver or discount.');
+  if (type === 'charge' && chargeKind === 'other' && !notes) throw new HttpError(400, 'Describe what this charge is for.');
   const now = new Date();
   const paidAt = readDate(body.paidAt, now);
   const requestId = String(body.clientRequestId ?? '').trim() || undefined;
@@ -75,7 +82,8 @@ export async function recordTransaction(body = {}) {
     await Batch.updateOne({ _id: batch._id }, { $inc: { ledgerVersion: 1 } }, { session });
     const account = await accountFor(batch.toObject(), { session, asOf: now });
     const balance = account.balanceCentavos;
-    if (type !== 'refund' && amount > balance) {
+    // A charge raises the balance, so it has no ceiling.
+    if (['payment', 'adjustment'].includes(type) && amount > balance) {
       throw new HttpError(400, balance > 0
         ? `The balance is ${formatPHP(balance)}. ${TYPE_LABELS[type]} cannot be more than that.`
         : 'This delivery has no balance to pay.');
@@ -89,7 +97,7 @@ export async function recordTransaction(body = {}) {
     const number = await nextNumber(`receipt:${year}`, { session });
     const receiptNo = `${coop.settings.tagPrefix}-R-${year}-${String(number).padStart(4, '0')}`;
     const [transaction] = await Transaction.create([{
-      receiptNo, type, batchId: batch._id, memberId: batch.memberId, amountCentavos: amount,
+      receiptNo, type, chargeKind, batchId: batch._id, memberId: batch.memberId, amountCentavos: amount,
       method, referenceNo, paidAt, recordedBy: ctx.userId, notes, clientRequestId: requestId,
     }], { session });
     await recordAudit({

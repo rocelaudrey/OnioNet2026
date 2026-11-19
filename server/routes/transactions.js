@@ -20,6 +20,7 @@ export const transactionView = (t) => ({
   id: t._id,
   receiptNo: t.receiptNo,
   type: t.type,
+  chargeKind: t.chargeKind ?? null,
   amountCentavos: t.amountCentavos,
   method: t.method ?? null,
   referenceNo: t.referenceNo ?? '',

@@ -6,7 +6,7 @@ import { Button, Table, Td } from '../../components/ui.jsx';
 import { date, formatPHP } from '../../lib/format.js';
 import RecordPayment from './RecordPayment.jsx';
 import PlanCard from './PlanCard.jsx';
-import { BalanceText, METHOD_LABELS, TypeBadge, quantityText } from './labels.jsx';
+import { BalanceText, METHOD_LABELS, TypeBadge, amountSign, lineText, quantityText } from './labels.jsx';
 
 function Row({ label, value, strong, muted }) {
   return (
@@ -21,7 +21,7 @@ function Row({ label, value, strong, muted }) {
 // from the fee service on the server.
 export default function AccountCard({ batch, account, transactions, onChanged }) {
   const navigate = useNavigate();
-  const [recording, setRecording] = useState(false);
+  const [recording, setRecording] = useState(null); // 'payment' | 'charge'
   if (batch.ownerType === 'coop_owned') return null;
   const canPay = batch.status !== 'cancelled';
   const credits = account.paidCentavos + account.adjustedCentavos - account.refundedCentavos;
@@ -31,30 +31,38 @@ export default function AccountCard({ batch, account, transactions, onChanged })
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-base">Fees and Payments</h2>
-          <p className="text-xs text-muted">Worked out as of {date(account.asOf)}. Overdue fees grow each day a sack stays past the contract end.</p>
+          <p className="text-xs text-muted">Worked out as of {date(account.asOf)}.{account.lines.find((l) => l.key === 'overdue')?.rateCentavos > 0 && ' Overdue fees grow each day a sack stays past the contract end.'}</p>
         </div>
-        {canPay && <Button onClick={() => setRecording(true)}><Plus size={16} /> Record Payment</Button>}
+        {canPay && (
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => setRecording('charge')}><Plus size={16} /> Add Charge</Button>
+            <Button onClick={() => setRecording('payment')}><Plus size={16} /> Record Payment</Button>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <dl>
-          {account.lines.filter((l) => l.key !== 'overdue').map((l) => (
-            <Row key={l.key} label={<>{l.label} <span className="text-muted">({quantityText(l.quantity, l.unit)} × {formatPHP(l.rateCentavos)})</span></>} value={formatPHP(l.amountCentavos)} />
+          {account.lines.filter((l) => l.discountable).map((l) => (
+            <Row key={l.key} label={<>{l.label} <span className="text-muted">({lineText(l, formatPHP).detail})</span></>} value={formatPHP(l.amountCentavos)} />
           ))}
           {account.discountCentavos > 0 && <Row label={`Member discount (${account.discountPercent}%)`} value={`−${formatPHP(account.discountCentavos)}`} muted />}
-          {account.overdueSackDays > 0 && (
+          {account.autoOverdueCentavos > 0 && (
             <Row
               label={<>Overdue fee <span className="text-muted">({quantityText(account.overdueSackDays, 'sack-day')} on {account.overdueSacks} {account.overdueSacks === 1 ? 'sack' : 'sacks'} × {formatPHP(account.lines.find((l) => l.key === 'overdue').rateCentavos)})</span></>}
-              value={<span className="text-critical">{formatPHP(account.overdueCentavos)}</span>}
+              value={<span className="text-critical">{formatPHP(account.autoOverdueCentavos)}</span>}
             />
           )}
+          {account.lines.filter((l) => l.manual).map((l) => (
+            <Row key={l.key} label={<>{l.label} <span className="text-muted">{[l.date && date(l.date), l.note].filter(Boolean).join(' · ')}</span></>} value={formatPHP(l.amountCentavos)} />
+          ))}
           <Row label="Total charges" value={formatPHP(account.totalCentavos)} strong />
           <Row label="Paid, waived, or discounted" value={`−${formatPHP(credits)}`} muted />
           <Row label="Balance" value={<BalanceText centavos={account.balanceCentavos} format={formatPHP} />} strong />
         </dl>
 
         <div>
-          <h3 className="mb-2 text-sm">Payments and adjustments</h3>
+          <h3 className="mb-2 text-sm">Payments and charges</h3>
           {transactions.length === 0 ? <p className="text-sm text-muted">Nothing recorded yet.</p> : (
             <Table minWidth={420} columns={['Receipt', 'Date', 'Type', 'Amount']}>
               {transactions.map((t) => (
@@ -67,7 +75,7 @@ export default function AccountCard({ batch, account, transactions, onChanged })
                   <Td className="whitespace-nowrap font-mono text-xs">{t.receiptNo}</Td>
                   <Td className="whitespace-nowrap">{date(t.paidAt)}</Td>
                   <Td><TypeBadge type={t.type} voided={t.voided} />{t.method && <span className="ml-1 text-xs text-muted">{METHOD_LABELS[t.method]}</span>}</Td>
-                  <Td className="whitespace-nowrap text-right">{t.type === 'refund' ? '+' : '−'}{formatPHP(t.amountCentavos)}</Td>
+                  <Td className="whitespace-nowrap text-right">{amountSign(t)}{formatPHP(t.amountCentavos)}</Td>
                 </tr>
               ))}
             </Table>
@@ -80,7 +88,8 @@ export default function AccountCard({ batch, account, transactions, onChanged })
       {recording && (
         <RecordPayment
           delivery={{ id: batch.id, batchNo: batch.batchNo, ownerName: batch.ownerName, balanceCentavos: account.balanceCentavos }}
-          onClose={() => setRecording(false)}
+          initialType={recording}
+          onClose={() => setRecording(null)}
           onDone={(t) => navigate(`/transactions/${t.id}`)}
         />
       )}

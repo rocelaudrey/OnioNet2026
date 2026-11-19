@@ -99,24 +99,46 @@ export function computeCharges(batch, sacks, asOf = new Date()) {
   };
 }
 
-// Adds what was paid, waived or discounted, and refunded. Voided entries do
-// not count. balance > 0 is still owed; < 0 is a credit.
+export const CHARGE_LABELS = { hauling: 'Hauling fee', overdue: 'Overdue charge', other: 'Other charge' };
+
+// Adds the manual charges staff entered (hauling, overdue, other), then what
+// was paid, waived or discounted, and refunded. Voided entries do not count.
+// Manual charges are never discounted. balance > 0 is owed; < 0 is a credit.
 export function settle(charges, transactions) {
   let paid = 0;
   let adjusted = 0;
   let refunded = 0;
+  let manual = 0;
+  let manualOverdue = 0;
+  const manualLines = [];
   for (const t of transactions) {
     if (t.voided?.at) continue;
     if (t.type === 'payment') paid += t.amountCentavos;
     else if (t.type === 'adjustment') adjusted += t.amountCentavos;
     else if (t.type === 'refund') refunded += t.amountCentavos;
+    else if (t.type === 'charge') {
+      manual += t.amountCentavos;
+      if (t.chargeKind === 'overdue') manualOverdue += t.amountCentavos;
+      manualLines.push({
+        key: `charge:${t._id ?? manualLines.length}`, label: CHARGE_LABELS[t.chargeKind] ?? 'Charge', note: t.notes ?? '',
+        date: t.paidAt ?? null, quantity: 1, unit: 'charge', rateCentavos: t.amountCentavos, amountCentavos: t.amountCentavos,
+        discountable: false, manual: true,
+      });
+    }
   }
+  const total = charges.totalCentavos + manual;
   return {
     ...charges,
+    lines: [...(charges.lines ?? []), ...manualLines],
+    manualCentavos: manual,
+    // Overdue in all: the built-in daily fee plus overdue charges added by hand.
+    autoOverdueCentavos: charges.overdueCentavos ?? 0,
+    overdueCentavos: (charges.overdueCentavos ?? 0) + manualOverdue,
+    totalCentavos: total,
     paidCentavos: paid,
     adjustedCentavos: adjusted,
     refundedCentavos: refunded,
-    balanceCentavos: charges.totalCentavos - paid - adjusted + refunded,
+    balanceCentavos: total - paid - adjusted + refunded,
   };
 }
 
@@ -139,7 +161,8 @@ export function planProgress(plan, transactions, account, asOf = new Date()) {
   const since = new Date(plan.createdAt);
   let covered = 0;
   for (const t of transactions) {
-    if (t.voided?.at || new Date(t.createdAt) < since) continue;
+    // Charges added later raise the balance; they are not money toward the plan.
+    if (t.voided?.at || t.type === 'charge' || new Date(t.createdAt) < since) continue;
     if (t.type === 'refund') covered -= t.amountCentavos;
     else covered += t.amountCentavos;
   }
@@ -188,7 +211,7 @@ export async function loadAccounts(batches, { asOf = new Date(), session } = {})
   const ids = batches.map((b) => b._id);
   const [sacks, transactions] = await Promise.all([
     Sack.find({ batchId: { $in: ids } }).select('batchId gateInAt gateOutAt').session(session ?? null).lean(),
-    Transaction.find({ batchId: { $in: ids } }).select('batchId type amountCentavos voided createdAt').session(session ?? null).lean(),
+    Transaction.find({ batchId: { $in: ids } }).select('batchId type chargeKind amountCentavos notes paidAt voided createdAt').sort({ paidAt: 1, _id: 1 }).session(session ?? null).lean(),
   ]);
   const group = (rows) => {
     const map = new Map(ids.map((id) => [String(id), []]));

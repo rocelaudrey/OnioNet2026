@@ -5,7 +5,7 @@ import { api } from '../../lib/api.js';
 import { formatPHP, pesosInput, readPesos } from '../../lib/format.js';
 import { useAuth } from '../../lib/auth.jsx';
 import { useSave } from '../../lib/useLoad.js';
-import { METHOD_LABELS, TYPE_LABELS } from './labels.jsx';
+import { CHARGE_KIND_LABELS, METHOD_LABELS, TYPE_LABELS } from './labels.jsx';
 
 const newId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
 const today = () => {
@@ -13,9 +13,11 @@ const today = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-// Record money for one delivery. Pass `delivery` ({ id, batchNo, ownerName,
-// balanceCentavos }) to skip choosing, or `farmer` to start from their list.
-export default function RecordPayment({ delivery, farmer: presetFarmer, onDone, onClose }) {
+// Record money for one delivery: a payment, a manual charge (hauling, overdue,
+// other), or, for admins, a waiver or refund. Pass `delivery` ({ id, batchNo,
+// ownerName, balanceCentavos }) to skip choosing, or `farmer` to start from
+// their list. initialType opens the form on a given type.
+export default function RecordPayment({ delivery, farmer: presetFarmer, initialType = 'payment', onDone, onClose }) {
   const { user } = useAuth();
   const isAdmin = user.role === 'coop_admin';
   const save = useSave();
@@ -24,10 +26,17 @@ export default function RecordPayment({ delivery, farmer: presetFarmer, onDone, 
   const [deliveries, setDeliveries] = useState(null);
   const [batchId, setBatchId] = useState(delivery?.id ?? '');
   const [form, setForm] = useState({
-    type: 'payment', amount: delivery && delivery.balanceCentavos > 0 ? pesosInput(delivery.balanceCentavos) : '',
-    method: 'cash', referenceNo: '', paidAt: today(), notes: '',
+    type: initialType,
+    amount: initialType === 'payment' && delivery && delivery.balanceCentavos > 0 ? pesosInput(delivery.balanceCentavos) : '',
+    method: 'cash', referenceNo: '', paidAt: today(), notes: '', chargeKind: 'hauling',
   });
   const set = (field) => (e) => setForm({ ...form, [field]: e.target.value });
+  // A payment starts at the balance; anything else starts empty.
+  const setType = (e) => {
+    const type = e.target.value;
+    const bal = (delivery ?? deliveries?.find((d) => String(d.id) === batchId))?.balanceCentavos ?? 0;
+    setForm({ ...form, type, amount: type === 'payment' && bal > 0 ? pesosInput(bal) : '' });
+  };
 
   // The farmer's deliveries with their balances, from the fee service.
   useEffect(() => {
@@ -39,7 +48,7 @@ export default function RecordPayment({ delivery, farmer: presetFarmer, onDone, 
       setDeliveries(owing);
       const first = owing.find((d) => d.balanceCentavos > 0) ?? owing[0];
       setBatchId(first ? String(first.id) : '');
-      if (first) setForm((f) => ({ ...f, amount: first.balanceCentavos > 0 ? pesosInput(first.balanceCentavos) : '' }));
+      if (first) setForm((f) => (f.type === 'payment' ? { ...f, amount: first.balanceCentavos > 0 ? pesosInput(first.balanceCentavos) : '' } : f));
     }).catch(() => current && setDeliveries([]));
     return () => { current = false; };
   }, [delivery, farmer]);
@@ -60,7 +69,8 @@ export default function RecordPayment({ delivery, farmer: presetFarmer, onDone, 
         method: 'POST',
         body: {
           batchId: chosen.id, type: form.type, amountCentavos: readPesos(form.amount, 'Amount'),
-          method: form.type === 'adjustment' ? undefined : form.method, referenceNo: form.referenceNo,
+          method: ['payment', 'refund'].includes(form.type) ? form.method : undefined, referenceNo: form.referenceNo,
+          chargeKind: form.type === 'charge' ? form.chargeKind : undefined,
           paidAt: form.paidAt, notes: form.notes, clientRequestId: requestId.current,
         },
       });
@@ -68,9 +78,10 @@ export default function RecordPayment({ delivery, farmer: presetFarmer, onDone, 
     });
   };
 
-  const types = isAdmin ? Object.entries(TYPE_LABELS) : [['payment', 'Payment']];
+  const types = Object.entries(TYPE_LABELS).filter(([t]) => isAdmin || t === 'payment' || t === 'charge');
+  const titles = { payment: 'Record Payment', charge: 'Add Charge' };
   return (
-    <Modal title={form.type === 'payment' ? 'Record Payment' : TYPE_LABELS[form.type]} onClose={onClose}>
+    <Modal title={titles[form.type] ?? TYPE_LABELS[form.type]} onClose={onClose}>
       <form onSubmit={onSubmit} className="space-y-4">
         {delivery ? (
           <div className="rounded-lg bg-page px-3 py-2.5 text-sm">
@@ -97,9 +108,12 @@ export default function RecordPayment({ delivery, farmer: presetFarmer, onDone, 
           </p>
         )}
 
-        {types.length > 1 && <SelectField label="Type" value={form.type} onChange={set('type')} options={types} />}
+        <SelectField label="Type" value={form.type} onChange={setType} options={types} />
+        {form.type === 'charge' && (
+          <SelectField label="Charge for" value={form.chargeKind} onChange={set('chargeKind')} options={Object.entries(CHARGE_KIND_LABELS)} />
+        )}
         <MoneyField label="Amount" required value={form.amount} onChange={set('amount')} placeholder="0.00" />
-        {form.type !== 'adjustment' && (
+        {['payment', 'refund'].includes(form.type) && (
           <div className="grid grid-cols-2 gap-4">
             <SelectField label={form.type === 'refund' ? 'Refunded by' : 'Paid by'} value={form.method} onChange={set('method')} options={Object.entries(METHOD_LABELS)} />
             <TextField
@@ -109,8 +123,12 @@ export default function RecordPayment({ delivery, farmer: presetFarmer, onDone, 
           </div>
         )}
         <TextField label="Date" type="date" max={today()} required value={form.paidAt} onChange={set('paidAt')} />
-        <Field label={form.type === 'adjustment' ? 'Reason' : 'Notes (optional)'}>
-          <textarea rows={2} required={form.type === 'adjustment'} className={inputClass} value={form.notes} onChange={set('notes')} />
+        <Field label={form.type === 'adjustment' ? 'Reason' : form.type === 'charge' && form.chargeKind === 'other' ? 'What is it for?' : form.type === 'charge' ? 'Details (optional)' : 'Notes (optional)'}>
+          <textarea
+            rows={2} className={inputClass} value={form.notes} onChange={set('notes')}
+            required={form.type === 'adjustment' || (form.type === 'charge' && form.chargeKind === 'other')}
+            placeholder={form.type === 'charge' ? (form.chargeKind === 'hauling' ? 'e.g. ₱20 × 85 sacks' : form.chargeKind === 'overdue' ? 'e.g. 2 months past the contract, 40 sacks' : '') : ''}
+          />
         </Field>
         <Notice>{save.error}</Notice>
         <div className="flex justify-end gap-2">

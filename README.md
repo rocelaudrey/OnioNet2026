@@ -91,6 +91,14 @@ Camera scanning needs HTTPS. It works on `localhost` on the same computer, but n
 | `npm run seed` | Creates the first accounts and FAFOGGGA; safe to run again |
 | `npm run psgc` | Rebuilds the address dropdown files (runs automatically before `dev` and `build`) |
 
+Data scripts (each previews by default; add `--confirm` to apply). Use `--env-file=.env` locally or your production settings file for the live site:
+
+| Command | What it does |
+|---|---|
+| `node --env-file=.env scripts/set-fees.js --prefix FAF --storage 270 --overdue 0 --discount 0 --months 4` | Sets a cooperative's fees and contract length, with an audit entry |
+| `node --env-file=.env scripts/sample-data.js --prefix FAF` | Loads a season of sample farmers, deliveries, releases, charges, and payments, recorded by a "Sample Data" account |
+| `node --env-file=.env scripts/remove-sample-data.js --prefix FAF` | Removes all sample data and restores the numbering |
+
 ## Settings
 
 | Variable | Needed | What it is |

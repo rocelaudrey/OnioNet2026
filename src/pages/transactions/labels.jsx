@@ -1,11 +1,22 @@
 import { Badge } from '../../components/ui.jsx';
 
-export const TYPE_LABELS = { payment: 'Payment', adjustment: 'Waiver or discount', refund: 'Refund' };
+export const TYPE_LABELS = { payment: 'Payment', charge: 'Charge', adjustment: 'Waiver or discount', refund: 'Refund' };
+export const CHARGE_KIND_LABELS = { hauling: 'Hauling fee', overdue: 'Overdue charge', other: 'Other charge' };
+
+// Charges and refunds raise what the farmer owes; payments and waivers lower it.
+export const amountSign = (t) => (t.type === 'charge' || t.type === 'refund' ? '+' : '−');
+
+// How one charge line reads: "Storage fee (12 sacks × ₱270.00)" or, for a
+// manual charge, "Hauling fee: ₱20 × 12 sacks".
+export function lineText(l, format) {
+  if (l.manual) return { label: l.label, detail: l.note || '' };
+  return { label: l.label, detail: `${quantityText(l.quantity, l.unit)} × ${format(l.rateCentavos)}` };
+}
 export const METHOD_LABELS = { cash: 'Cash', gcash: 'GCash', bank: 'Bank transfer' };
 
 export function TypeBadge({ type, voided }) {
   if (voided) return <Badge>Voided</Badge>;
-  const color = { payment: 'green', adjustment: 'purple', refund: 'orange' }[type] ?? 'gray';
+  const color = { payment: 'green', adjustment: 'purple', refund: 'orange', charge: 'amber' }[type] ?? 'gray';
   return <Badge color={color}>{TYPE_LABELS[type] ?? type}</Badge>;
 }
 

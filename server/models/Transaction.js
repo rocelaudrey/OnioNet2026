@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { PAYMENT_METHODS, TRANSACTION_TYPES } from '../../shared/statuses.js';
+import { CHARGE_KINDS, PAYMENT_METHODS, TRANSACTION_TYPES } from '../../shared/statuses.js';
 import { tenantPlugin } from '../plugins/tenant.js';
 
 // Money that actually moved. Charges are not stored here; they come from the
@@ -8,10 +8,13 @@ const transactionSchema = new mongoose.Schema(
   {
     receiptNo: { type: String, required: true, trim: true },
     type: { type: String, enum: TRANSACTION_TYPES, required: true },
+    // For type 'charge' only: what the manual charge is for.
+    chargeKind: { type: String, enum: [...CHARGE_KINDS, null], default: null },
     batchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Batch', required: true },
     memberId: { type: mongoose.Schema.Types.ObjectId, ref: 'Member', default: null },
     amountCentavos: { type: Number, required: true, min: 1, validate: Number.isInteger },
-    method: { type: String, enum: PAYMENT_METHODS, default: 'cash' },
+    // Payments and refunds only; empty for waivers and charges.
+    method: { type: String, enum: [...PAYMENT_METHODS, null], default: null },
     referenceNo: { type: String, trim: true },
     paidAt: { type: Date, required: true, default: Date.now },
     recordedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

@@ -138,7 +138,7 @@ router.get('/fees', async (req, res) => {
   res.json({
     generatedAt: now, from: r.from, to: r.to,
     period: {
-      paymentsCentavos: sum('payment'), refundsCentavos: sum('refund'), waivedCentavos: sum('adjustment'),
+      paymentsCentavos: sum('payment'), refundsCentavos: sum('refund'), waivedCentavos: sum('adjustment'), chargedCentavos: sum('charge'),
       netCollectedCentavos: sum('payment') - sum('refund'), voidedEntries: voided, byMethod,
     },
     asOfToday: {
