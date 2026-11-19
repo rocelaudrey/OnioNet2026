@@ -11,6 +11,7 @@ import { HttpError, notFound } from '../middleware/errors.js';
 import { assertFeature } from '../middleware/features.js';
 import { hashPassword, temporaryPassword } from '../lib/password.js';
 import { recordAudit } from '../services/audit.js';
+import { addressLine, resolveAddress } from '../lib/address.js';
 import { loadAccounts } from '../services/fees.js';
 import { nextNumber } from '../services/sequences.js';
 
@@ -20,8 +21,8 @@ const FIELDS = [
   'farmAreaHa', 'rsbsaNo', 'status', 'joinedAt', 'notes',
 ];
 const AUDIT_FIELDS = [
-  'tier', 'firstName', 'lastName', 'phone', 'address.barangay', 'address.municipality',
-  'address.province', 'birthDate', 'farmAreaHa', 'rsbsaNo', 'status', 'joinedAt', 'notes',
+  'tier', 'firstName', 'lastName', 'phone', 'address.street', 'address.barangay', 'address.municipality',
+  'address.province', 'address.region', 'birthDate', 'farmAreaHa', 'rsbsaNo', 'status', 'joinedAt', 'notes',
 ];
 const PAGE_SIZE = 50;
 const fullName = (m) => `${m.firstName} ${m.lastName}`.trim();
@@ -35,10 +36,14 @@ const view = (m) => ({
   fullName: fullName(m),
   phone: m.phone ?? '',
   address: {
-    barangay: m.address?.barangay ?? '',
-    municipality: m.address?.municipality ?? '',
-    province: m.address?.province ?? '',
+    country: m.address?.country ?? '',
+    region: m.address?.region ?? '', regionCode: m.address?.regionCode ?? '',
+    province: m.address?.province ?? '', provinceCode: m.address?.provinceCode ?? '',
+    municipality: m.address?.municipality ?? '', municipalityCode: m.address?.municipalityCode ?? '',
+    barangay: m.address?.barangay ?? '', barangayCode: m.address?.barangayCode ?? '',
+    street: m.address?.street ?? '',
   },
+  addressLine: addressLine(m.address),
   birthDate: m.birthDate ?? null,
   farmAreaHa: m.farmAreaHa ?? null,
   rsbsaNo: m.rsbsaNo ?? '',
@@ -53,6 +58,8 @@ const flat = (m) => ({
   'address.barangay': m.address?.barangay ?? null,
   'address.municipality': m.address?.municipality ?? null,
   'address.province': m.address?.province ?? null,
+  'address.region': m.address?.region ?? null,
+  'address.street': m.address?.street ?? null,
 });
 
 function clean(body) {
@@ -60,12 +67,14 @@ function clean(body) {
   for (const field of ['firstName', 'lastName', 'phone', 'rsbsaNo', 'notes']) {
     if (typeof data[field] === 'string') data[field] = data[field].trim();
   }
+  // The address is chosen from the official list: only codes come in, and the
+  // names are looked up here.
   if (data.address !== undefined) {
-    data.address = {
-      barangay: String(data.address?.barangay ?? '').trim(),
-      municipality: String(data.address?.municipality ?? '').trim(),
-      province: String(data.address?.province ?? '').trim(),
-    };
+    try {
+      data.address = resolveAddress(data.address);
+    } catch (err) {
+      throw new HttpError(400, err.message);
+    }
   }
   for (const field of ['birthDate', 'joinedAt']) {
     if (data[field] === '' || data[field] === null) data[field] = null;

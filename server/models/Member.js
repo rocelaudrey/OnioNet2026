@@ -10,10 +10,19 @@ const memberSchema = new mongoose.Schema(
     firstName: { type: String, required: true, trim: true },
     lastName: { type: String, required: true, trim: true },
     phone: { type: String, trim: true },
+    // Chosen from the official PSGC list. Names are kept with the codes so
+    // reports read without a lookup. Older records may have names only.
     address: {
-      barangay: { type: String, trim: true },
-      municipality: { type: String, trim: true },
+      country: { type: String, trim: true },
+      region: { type: String, trim: true },
+      regionCode: { type: String, trim: true },
       province: { type: String, trim: true },
+      provinceCode: { type: String, trim: true },
+      municipality: { type: String, trim: true },
+      municipalityCode: { type: String, trim: true },
+      barangay: { type: String, trim: true },
+      barangayCode: { type: String, trim: true },
+      street: { type: String, trim: true }, // house no., street, purok, or sitio
     },
     birthDate: { type: Date, default: null },
     farmAreaHa: { type: Number, min: 0, default: null },

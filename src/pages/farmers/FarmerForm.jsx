@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import AddressPicker, { addressBody, addressValue } from '../../components/AddressPicker.jsx';
 import { Button, Field, Modal, Notice, SelectField, TextField, inputClass } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
 import { useSave } from '../../lib/useLoad.js';
@@ -7,16 +8,30 @@ const TIERS = [['member', 'Member'], ['guest', 'Guest']];
 const dateInput = (value) => (value ? String(value).slice(0, 10) : '');
 const today = () => new Date().toISOString().slice(0, 10);
 
-// Add (farmer = null) or edit a farmer. defaults pre-fills a new farmer's address.
-export default function FarmerForm({ farmer, defaults, onDone, onClose }) {
+// New farmers start with the region, province, and town last used on this
+// device, since most farmers of a cooperative live nearby.
+const LAST_PLACE = 'onionet:lastPlace';
+function lastPlace() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LAST_PLACE) ?? 'null');
+    return saved ? { ...saved, barangayCode: '', street: '' } : null;
+  } catch {
+    return null;
+  }
+}
+function rememberPlace(v) {
+  try {
+    localStorage.setItem(LAST_PLACE, JSON.stringify({ regionCode: v.regionCode, area: v.area, municipalityCode: v.municipalityCode }));
+  } catch { /* storage may be blocked; nothing to do */ }
+}
+
+// Add (farmer = null) or edit a farmer.
+export default function FarmerForm({ farmer, onDone, onClose }) {
   const save = useSave();
   const [form, setForm] = useState({
     tier: farmer?.tier ?? 'member',
     firstName: farmer?.firstName ?? '', lastName: farmer?.lastName ?? '',
     phone: farmer?.phone ?? '',
-    barangay: farmer?.address.barangay ?? '',
-    municipality: farmer?.address.municipality ?? defaults?.municipality ?? '',
-    province: farmer?.address.province ?? defaults?.province ?? '',
     birthDate: dateInput(farmer?.birthDate),
     farmAreaHa: farmer?.farmAreaHa ?? '',
     rsbsaNo: farmer?.rsbsaNo ?? '',
@@ -25,19 +40,26 @@ export default function FarmerForm({ farmer, defaults, onDone, onClose }) {
     status: farmer?.status ?? 'active',
   });
   const set = (field) => (e) => setForm({ ...form, [field]: e.target.value });
+  const [address, setAddress] = useState(() => (farmer ? addressValue(farmer.address) : lastPlace() ?? addressValue(null)));
+  // Older farmers may have a typed address with no codes. It is kept unless
+  // someone picks a new one, so editing a name never erases it.
+  const [addressTouched, setAddressTouched] = useState(false);
+  const oldTypedAddress = farmer && !farmer.address.regionCode ? farmer.addressLine : '';
+  const onAddress = useCallback((next) => { setAddress(next); setAddressTouched(true); }, []);
 
   const onSubmit = (e) => {
     e.preventDefault();
     save.run(async () => {
       const body = {
         tier: form.tier, firstName: form.firstName, lastName: form.lastName, phone: form.phone,
-        address: { barangay: form.barangay, municipality: form.municipality, province: form.province },
+        ...(!farmer || addressTouched ? { address: addressBody(address) } : {}),
         birthDate: form.birthDate, farmAreaHa: form.farmAreaHa, rsbsaNo: form.rsbsaNo,
         joinedAt: form.joinedAt, notes: form.notes,
       };
       const result = farmer
         ? await api(`/members/${farmer.id}`, { method: 'PATCH', body: { ...body, status: form.status } })
         : await api('/members', { method: 'POST', body });
+      if (address.municipalityCode) rememberPlace(address);
       onDone(result.member);
     });
   };
@@ -54,11 +76,13 @@ export default function FarmerForm({ farmer, defaults, onDone, onClose }) {
           <TextField label="Last name" required value={form.lastName} onChange={set('lastName')} />
         </div>
         <TextField label="Mobile number" inputMode="tel" value={form.phone} onChange={set('phone')} />
-        <div className="grid grid-cols-2 gap-4">
-          <TextField label="Barangay" value={form.barangay} onChange={set('barangay')} />
-          <TextField label="Municipality" value={form.municipality} onChange={set('municipality')} />
-          <TextField label="Province" value={form.province} onChange={set('province')} className="col-span-2" />
-        </div>
+        <fieldset className="space-y-2">
+          <legend className="text-xs font-medium text-ink">Address</legend>
+          {oldTypedAddress && !addressTouched && (
+            <p className="text-xs text-muted">Saved address: <span className="text-ink">{oldTypedAddress}</span>. Choose it from the lists below to update it.</p>
+          )}
+          <AddressPicker value={address} onChange={onAddress} />
+        </fieldset>
         <p className="pt-1 text-xs font-medium text-ink">Optional details</p>
         <div className="grid grid-cols-2 gap-4">
           <TextField label="Birth date" type="date" max={today()} value={form.birthDate} onChange={set('birthDate')} />

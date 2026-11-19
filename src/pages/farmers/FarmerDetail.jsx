@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Package, Pencil, Plus } from 'lucide-react';
+import { ArrowLeft, FileText, Package, Pencil, Plus } from 'lucide-react';
 import { Card, EmptyState } from '../../components/Card.jsx';
 import { Badge, Button, Modal, Notice, Table, Td, TextField } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
@@ -139,7 +139,7 @@ export default function FarmerDetail() {
   if (error) return <>{back}<Notice>{error}</Notice></>;
 
   const { member, portal, storage, deliveries = [], account } = data;
-  const address = [member.address.barangay, member.address.municipality, member.address.province].filter(Boolean).join(', ');
+  const address = [member.addressLine, member.address.region].filter(Boolean).join(' · ');
 
   return (
     <>
@@ -177,7 +177,14 @@ export default function FarmerDetail() {
               <h2 className="text-base">Deliveries and Balance</h2>
               <p className="text-xs text-muted">{number(storage.sacksStored)} sacks in storage across {number(storage.batches)} {storage.batches === 1 ? 'delivery' : 'deliveries'}</p>
             </div>
-            {deliveries.length > 0 && <Button onClick={() => setPaying(true)}><Plus size={16} /> Record Payment</Button>}
+            {deliveries.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                <Link to={`/reports/statement/${member.id}`} className="inline-flex items-center gap-2 rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-medium hover:bg-page">
+                  <FileText size={16} /> Statement of Account
+                </Link>
+                <Button onClick={() => setPaying(true)}><Plus size={16} /> Record Payment</Button>
+              </div>
+            )}
           </div>
           {deliveries.length === 0 ? (
             <EmptyState icon={Package} title="No deliveries yet" detail="This farmer's deliveries, sacks, and fees will appear here once a delivery is received." />

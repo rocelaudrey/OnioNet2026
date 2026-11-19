@@ -5,3 +5,5 @@ dist
 !.env.example
 .vercel
 .DS_Store
+# Generated from @aivangogh/ph-address by scripts/build-psgc.js
+public/psgc

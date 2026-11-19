@@ -36,4 +36,12 @@ h1, h2, h3 {
   body {
     background: #fff;
   }
+  /* Tables fit the page instead of keeping their on-screen minimum width. */
+  table {
+    min-width: 0 !important;
+    font-size: 11px;
+  }
+  tr, li {
+    break-inside: avoid;
+  }
 }

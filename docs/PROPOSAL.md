@@ -391,6 +391,7 @@ All routes are under `/api`. All except login require a session. IDs in paths ar
 | PATCH | `/admin/cooperatives/:id/subscription` | manage subscription |
 | POST | `/admin/cooperatives/:id/admins` | create a Cooperative Admin |
 | GET | `/admin/overview` | cross-cooperative totals and plans ending within 30 days; no farmer details |
+| POST | `/admin/cooperatives/:id/admins/:userId/reset-password` | reset a locked-out Cooperative Admin's password |
 
 ### Cooperative setup
 
@@ -484,7 +485,7 @@ Each write checks the current state first (for example, gate-in only works on an
 | GET | `/reports/statement/:memberId` | statement of account for one farmer |
 | GET | `/audit-logs` | filter by date, person, and record type |
 
-Reports return data only; PDFs are made in the browser.
+Reports return data only; PDFs are made in the browser. Printing a report calls `POST /reports/printed`, which records an `export` audit entry and is allowed only when the plan includes `pdf_reports`. The Audit Logs page uses `GET /audit-logs/filters` and `POST /audit-logs/search` (Cooperative Admin only).
 
 ### Farmer portal (`/me`)
 

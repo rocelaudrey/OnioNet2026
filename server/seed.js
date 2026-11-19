@@ -1,6 +1,7 @@
 // Seeds the Super Admin, the first tenant (FAFOGGGA), its layout, and its
 // first Cooperative Admin. Safe to run more than once: existing records are
 // left as they are.
+import './timezone.js'; // must be first: sets Philippine time before any date is used
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import { connectDb } from './db.js';

@@ -1,3 +1,4 @@
+import './timezone.js'; // must be first: sets Philippine time before any date is used
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import { withDb } from './db.js';
@@ -17,6 +18,9 @@ import batchRoutes from './routes/batches.js';
 import custodyRoutes from './routes/custody.js';
 import transactionRoutes from './routes/transactions.js';
 import dashboardRoutes from './routes/dashboard.js';
+import reportRoutes from './routes/reports.js';
+import auditLogRoutes from './routes/auditLogs.js';
+import meRoutes from './routes/me.js';
 import * as lists from './routes/lists.js';
 
 const app = express();
@@ -48,6 +52,9 @@ api.use('/tags', coopTeam, tagRoutes);
 api.use('/tag-lots', coopTeam, tagLotRoutes);
 api.use('/transactions', coopTeam, transactionRoutes);
 api.use('/dashboard', coopTeam, dashboardRoutes);
+api.use('/reports', coopTeam, reportRoutes);
+api.use('/audit-logs', requireRole(ROLES.COOP_ADMIN), auditLogRoutes);
+api.use('/me', requireRole(ROLES.MEMBER), meRoutes);
 
 app.use('/api', api);
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found.' }));

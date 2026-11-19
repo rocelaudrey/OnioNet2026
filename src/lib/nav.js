@@ -19,6 +19,7 @@ const MEMBER_NAV = [
   { to: '/', label: 'My Storage', icon: LayoutDashboard, end: true },
   { to: '/my-batches', label: 'My Batches', icon: Package, subtitle: 'Your deliveries and where they are stored' },
   { to: '/my-fees', label: 'My Fees', icon: Receipt, subtitle: 'Your charges and payments' },
+  // Farmers are read-only: no actions, only their own records.
 ];
 
 const SUPER_ADMIN_NAV = [

@@ -26,16 +26,25 @@ describe('Farmers', () => {
   it('adds a farmer with the next member number and all the optional details', async () => {
     const res = await as(A.staff).post('/api/members', {
       tier: 'guest', firstName: ' Maria ', lastName: 'Dela Cruz', phone: '09175550001',
-      address: { barangay: 'Nagcuartelan', municipality: 'Aritao', province: 'Nueva Vizcaya' },
+      address: { regionCode: '0200000000', provinceCode: '0205000000', municipalityCode: '0205002000', barangayCode: '0205002010' },
       birthDate: '1980-05-17', farmAreaHa: '1.5', rsbsaNo: '02-50-01-001-000001', joinedAt: '',
     }).expect(201);
     maria = res.body.member;
     expect(maria).toMatchObject({
       memberNo: 'ALP-M-0002', tier: 'guest', firstName: 'Maria', fullName: 'Maria Dela Cruz',
       farmAreaHa: 1.5, rsbsaNo: '02-50-01-001-000001', status: 'active', joinedAt: null,
-      address: { barangay: 'Nagcuartelan', municipality: 'Aritao', province: 'Nueva Vizcaya' },
+      address: { barangay: 'Nagcuartelan', municipality: 'Aritao', province: 'Nueva Vizcaya', region: 'Region II (Cagayan Valley)', country: 'Philippines' },
     });
+    expect(maria.addressLine).toBe('Nagcuartelan, Aritao, Nueva Vizcaya');
     expect(maria.birthDate).toMatch(/^1980-05-17/);
+  });
+
+  it('accepts only addresses from the official list', async () => {
+    const res = await as(A.staff).post('/api/members', { tier: 'member', firstName: 'Bad', lastName: 'Place', address: { regionCode: '0200000000', provinceCode: '0205000000', municipalityCode: '1380300000' } }).expect(400);
+    expect(res.body.error).toMatch(/not in the chosen province/);
+    // Typed place names are not accepted: without codes, nothing is stored.
+    const typed = await as(A.staff).patch(`/api/members/${A.records.Member._id}`, { address: { barangay: 'Somewhere' } }).expect(200);
+    expect(typed.body.member.address).toMatchObject({ barangay: '', municipality: '', province: '' });
   });
 
   it('needs only a tier and a name; everything else is optional', async () => {
@@ -67,7 +76,7 @@ describe('Farmers', () => {
 
   it('edits a farmer and records exactly what changed', async () => {
     const res = await as(A.staff).patch(`/api/members/${maria.id}`, {
-      tier: 'member', address: { barangay: 'Nagcuartelan', municipality: 'Aritao', province: 'Nueva Vizcaya' }, phone: '09175550002',
+      tier: 'member', address: { ...{ regionCode: '0200000000', provinceCode: '0205000000', municipalityCode: '0205002000', barangayCode: '0205002010' }, street: 'Purok 3' }, phone: '09175550002',
     }).expect(200);
     expect(res.body.member).toMatchObject({ tier: 'member', phone: '09175550002' });
     const log = (await audits({ entityType: 'Member', action: 'update' })).at(-1);
@@ -75,6 +84,7 @@ describe('Farmers', () => {
     expect(log.changes).toEqual([
       { field: 'tier', from: 'guest', to: 'member' },
       { field: 'phone', from: '09175550001', to: '09175550002' },
+      { field: 'address.street', from: '', to: 'Purok 3' },
     ]);
   });
 

@@ -131,7 +131,7 @@ export function Modal({ title, onClose, children }) {
 
 export function Table({ columns, children, minWidth = 560 }) {
   return (
-    <div className="-mx-5 overflow-x-auto">
+    <div className="-mx-5 overflow-x-auto print:mx-0 print:overflow-visible">
       <table className="w-full text-left text-sm" style={{ minWidth }}>
         <thead>
           <tr className="border-b border-line text-xs text-muted">
