@@ -7,3 +7,6 @@ dist
 .DS_Store
 # Generated from @aivangogh/ph-address by scripts/build-psgc.js
 public/psgc
+
+# Database backups hold personal data; never commit them
+backups/

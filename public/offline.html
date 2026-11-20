@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>No Connection · OnioNet</title>
+  <style>
+    :root { color-scheme: light; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #F5F6F8; color: #1F2937;
+      font-family: Poppins, system-ui, -apple-system, sans-serif; padding: 16px; box-sizing: border-box; }
+    main { background: #fff; border-radius: 12px; padding: 28px 24px; max-width: 360px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    img { width: 64px; height: 64px; }
+    h1 { font-size: 20px; font-weight: 600; margin: 12px 0 8px; }
+    p { font-size: 14px; color: #6B7280; line-height: 1.5; margin: 0 0 20px; }
+    button { background: #6BA539; color: #fff; border: 0; border-radius: 8px; padding: 12px 20px; font: inherit; font-weight: 500; font-size: 15px; width: 100%; }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="/logo.png" alt="" />
+    <h1>No internet connection</h1>
+    <p>OnioNet needs the internet to record scans and payments, so nothing was saved. Check your Wi-Fi or mobile data, then try again.</p>
+    <button type="button" onclick="location.reload()">Try Again</button>
+  </main>
+</body>
+</html>

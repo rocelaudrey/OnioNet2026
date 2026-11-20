@@ -115,7 +115,7 @@ describe('reports', () => {
 
   it('farmer masterlist: every farmer with deliveries, sacks, and balance matching the farmer page', async () => {
     const r = await report('members');
-    expect(r.totals).toEqual({ all: 2, members: 1, guests: 1, inactive: 0 });
+    expect(r.totals).toEqual({ all: 2, members: 1, guests: 1, traders: 0, inactive: 0 });
     for (const row of r.members) {
       const id = row.memberNo === 'ALP-M-0001' ? A.records.Member._id : guestId;
       const page = (await get(A.staff, `/api/members/${id}`)).body;
@@ -141,10 +141,11 @@ describe('reports', () => {
   it('records printing in the audit log, only when the plan includes it', async () => {
     await post(A.staff, '/api/reports/printed', { report: 'members' }).expect(200);
     await post(A.staff, '/api/reports/printed', { report: 'statement', memberId: guestId }).expect(200);
+    await post(A.staff, '/api/reports/printed', { report: 'fees', format: 'csv' }).expect(200);
     await post(A.staff, '/api/reports/printed', { report: 'bogus' }).expect(400);
     await post(A.staff, '/api/reports/printed', { report: 'statement', memberId: String(B.records.Member._id) }).expect(404);
     const logs = await sys(() => models.AuditLog.find({ action: 'export', entityType: 'Report' }).sort('occurredAt').lean());
-    expect(logs.map((l) => l.entityLabel)).toEqual(['Farmer masterlist', 'Statement of account: Gina Guest']);
+    expect(logs.map((l) => l.entityLabel)).toEqual(['Farmer masterlist', 'Statement of account: Gina Guest', 'Fees and collections report (downloaded as CSV)']);
     expect(logs.every((l) => l.actorName === 'Alpha Staff' && String(l.cooperativeId) === String(A.coop._id))).toBe(true);
     expect((await post(B.staff, '/api/reports/printed', { report: 'members' }).expect(403)).body.error).toMatch(/not available on your plan/);
   });
@@ -168,7 +169,7 @@ describe('audit logs', () => {
   it('list changes newest first with names, never record IDs', async () => {
     const r = (await post(A.admin, '/api/audit-logs/search', {}).expect(200)).body;
     expect(r.total).toBeGreaterThan(5);
-    expect(r.entries[0]).toMatchObject({ action: 'export', entityLabel: 'Statement of account: Gina Guest', actorName: 'Alpha Staff', actorRole: 'Cooperative Staff' });
+    expect(r.entries[0]).toMatchObject({ action: 'export', entityLabel: 'Fees and collections report (downloaded as CSV)', actorName: 'Alpha Staff', actorRole: 'Cooperative Staff' });
     expect(Object.keys(r.entries[0]).sort()).toEqual(['action', 'actorName', 'actorRole', 'changes', 'entityLabel', 'entityType', 'id', 'occurredAt']);
     const dates = r.entries.map((e) => new Date(e.occurredAt).getTime());
     expect([...dates].sort((a, b) => b - a)).toEqual(dates);
@@ -181,7 +182,7 @@ describe('audit logs', () => {
     expect(filters.types).toEqual(expect.arrayContaining(['Batch', 'Member', 'Report', 'Transaction']));
     expect((await search({ actorName: 'Alpha Admin' })).every((e) => e.actorName === 'Alpha Admin')).toBe(true);
     expect((await search({ entityType: 'Member' })).map((e) => e.entityLabel)).toContain('Gina Guest');
-    expect((await search({ action: 'export' })).length).toBe(2);
+    expect((await search({ action: 'export' })).length).toBe(3);
     expect((await search({ q: 'gina' })).length).toBeGreaterThan(0);
     expect(await search({ q: '.*' })).toEqual([]);
     expect(await search({ from: '2001-01-01', to: '2001-12-31' })).toEqual([]);

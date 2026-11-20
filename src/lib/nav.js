@@ -8,7 +8,7 @@ const COOP_NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/inventory', label: 'Inventory', icon: Package, subtitle: 'Sacks and batches in storage' },
   { to: '/qr-tags', label: 'QR Tags', icon: QrCode, subtitle: 'Reusable tags and their history' },
-  { to: '/farmers', label: 'Farmers', icon: Users, subtitle: 'Members and guests' },
+  { to: '/farmers', label: 'Farmers', icon: Users, subtitle: 'Members, guests, and traders' },
   { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight, subtitle: 'Fees and payments' },
   { to: '/reports', label: 'Reports', icon: FileText, subtitle: 'Storage and fee reports' },
   { to: '/audit-logs', label: 'Audit Logs', icon: ClipboardList, subtitle: 'Record of all changes', adminOnly: true },

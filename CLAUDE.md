@@ -102,7 +102,7 @@ Match the existing OnioNet dashboard design.
 
 Dashboard, Inventory, QR Tags, Farmers, Transactions, Reports, Audit Logs, Settings
 
-(Farm Locations is added in a later phase.)
+Farms (where each farmer grows onions) are kept on the farmer's page, and each delivery can record its farm of origin.
 
 ## Deployment
 

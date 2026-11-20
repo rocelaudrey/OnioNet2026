@@ -40,14 +40,14 @@ export default function Farmers() {
     <>
       <PageHeader
         title="Farmers"
-        subtitle="Members and guests who store onions here"
+        subtitle="Members, guests, and traders who store onions here"
         action={<Button onClick={() => setAdding(true)}><Plus size={16} /> Add Farmer</Button>}
       />
 
       <div className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="All Farmers" value={show(totals?.all)} icon={Users} color="green" />
         <StatCard label="Members" value={show(totals?.members)} icon={UserCheck} color="purple" />
-        <StatCard label="Guests" value={show(totals?.guests)} icon={UserPlus} color="orange" />
+        <StatCard label="Guests" value={show(totals?.guests)} icon={UserPlus} color="orange" trend={totals?.traders ? `Plus ${totals.traders} ${totals.traders === 1 ? 'trader' : 'traders'}` : undefined} />
         <StatCard label="Inactive" value={show(totals?.inactive)} icon={UserX} color="gray" />
       </div>
 
@@ -66,6 +66,7 @@ export default function Farmers() {
             <option value="">All types</option>
             <option value="member">Members</option>
             <option value="guest">Guests</option>
+            <option value="trader">Traders</option>
           </select>
           <select aria-label="Status" value={filters.status} onChange={set('status')} className={`${inputClass} mt-0 sm:w-40`}>
             <option value="">Any status</option>

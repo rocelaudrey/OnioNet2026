@@ -52,6 +52,8 @@ function view(batch, counts, now = new Date()) {
     grade: batch.grade ?? '',
     declaredSackCount: batch.declaredSackCount,
     totalWeightKg: batch.totalWeightKg ?? null,
+    farm: batch.farm ? { id: batch.farm.farmId, name: batch.farm.name, location: batch.farm.location ?? '' } : null,
+    condition: batch.condition ?? null,
     contractStart: batch.contractStart,
     contractEnd: batch.contractEnd,
     status: batch.status,
@@ -130,7 +132,7 @@ router.post('/', async (req, res) => {
 });
 
 async function detail(id) {
-  const batch = await Batch.findOne({ _id: id }).populate('memberId', 'firstName lastName memberNo').populate('receivedBy', 'name').lean();
+  const batch = await Batch.findOne({ _id: id }).populate('memberId', 'firstName lastName memberNo farms').populate('receivedBy', 'name').lean();
   if (!batch) throw notFound('Delivery');
   const [counts, sacks, releases, gateOuts, accounts, transactions] = await Promise.all([
     sackCounts([batch._id]),
@@ -153,6 +155,8 @@ async function detail(id) {
       ...view(batch, counts),
       receivedByName: batch.receivedBy?.name ?? '',
       feeTerms: batch.feeTerms,
+      // The owner's farms in use, to choose where this delivery came from.
+      ownerFarms: (batch.memberId?.farms ?? []).filter((f) => f.active !== false).map((f) => ({ id: f._id, name: f.name })),
     },
     account: accounts.get(String(batch._id)),
     transactions: transactions.map(transactionView),

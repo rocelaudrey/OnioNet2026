@@ -24,6 +24,7 @@ const own = async (req) => {
 
 const deliveryRow = (d) => ({
   id: d.id, batchNo: d.batchNo, status: d.status, receivedAt: d.receivedAt, contractEnd: d.contractEnd, variety: d.variety,
+  farmName: d.farmName, condition: d.condition,
   sacksReceived: d.sacksReceived, sacksStored: d.sacksStored, overdue: d.overdue,
   totalCentavos: d.account.totalCentavos, balanceCentavos: d.account.balanceCentavos, planStatus: d.account.plan?.status ?? null,
 });

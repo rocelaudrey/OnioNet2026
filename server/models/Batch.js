@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import {
-  ADDED_FEE_CHARGED_PER, BATCH_STATUSES, OWNER_TYPES,
+  ADDED_FEE_CHARGED_PER, BATCH_CONDITIONS, BATCH_STATUSES, OWNER_TYPES,
 } from '../../shared/statuses.js';
 import { tenantPlugin } from '../plugins/tenant.js';
 
@@ -20,6 +20,26 @@ const batchSchema = new mongoose.Schema(
     grade: { type: String, trim: true },
     declaredSackCount: { type: Number, required: true, min: 1, validate: Number.isInteger },
     totalWeightKg: { type: Number, min: 0, default: null },
+    // The farm the onions came from. The name and place are copied at intake
+    // so later edits to the farm do not change this delivery's record.
+    farm: {
+      type: new mongoose.Schema({
+        farmId: { type: mongoose.Schema.Types.ObjectId, required: true },
+        name: { type: String, required: true },
+        location: { type: String, default: '' },
+      }, { _id: false }),
+      default: null,
+    },
+    // Condition as seen by staff (at intake or a later check). Recorded only.
+    condition: {
+      type: new mongoose.Schema({
+        rating: { type: String, enum: BATCH_CONDITIONS, required: true },
+        notes: { type: String, trim: true, maxlength: 300 },
+        checkedAt: { type: Date, required: true },
+        checkedByName: { type: String, required: true },
+      }, { _id: false }),
+      default: null,
+    },
     contractStart: { type: Date, required: true },
     contractEnd: { type: Date, required: true },
     // Copy of the fees in force at intake. Later setting changes do not touch it.

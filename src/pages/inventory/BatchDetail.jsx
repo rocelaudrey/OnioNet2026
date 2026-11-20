@@ -1,14 +1,45 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, FileText, LogOut, Package, Pencil, ScanLine } from 'lucide-react';
+import { ArrowLeft, ClipboardCheck, FileText, LogOut, Package, Pencil, ScanLine } from 'lucide-react';
 import { Card, EmptyState } from '../../components/Card.jsx';
-import { Badge, Button, Field, Modal, Notice, Table, Td, TextField, inputClass } from '../../components/ui.jsx';
+import { Badge, Button, Field, Modal, Notice, SelectField, Table, Td, TextField, inputClass } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
 import { date, dateTime, formatPHP, number } from '../../lib/format.js';
 import { useLoad, useSave } from '../../lib/useLoad.js';
 import { BatchStatusBadge, CHARGED_PER, SACK_STATUS } from './labels.jsx';
 import AccountCard from '../transactions/AccountCard.jsx';
 import { PlanBadge } from '../transactions/labels.jsx';
+import { CONDITION_LABELS } from '../../../shared/statuses.js';
+
+export const CONDITION_COLORS = { good: 'green', fair: 'amber', poor: 'red' };
+export const CONDITION_OPTIONS = [['good', 'Good'], ['fair', 'Fair'], ['poor', 'Poor']];
+
+// Records how the onions look now. Each check is kept in the audit log.
+function ConditionForm({ batch, onDone, onClose }) {
+  const save = useSave();
+  const [form, setForm] = useState({ rating: batch.condition?.rating ?? 'good', notes: '' });
+  const onSubmit = (e) => {
+    e.preventDefault();
+    save.run(async () => onDone(await api(`/batches/${batch.id}`, { method: 'PATCH', body: { condition: form } })));
+  };
+  return (
+    <Modal title="Check Condition" onClose={onClose}>
+      <form onSubmit={onSubmit} className="space-y-4">
+        <SelectField label="Condition of the onions" value={form.rating} onChange={(e) => setForm({ ...form, rating: e.target.value })} options={CONDITION_OPTIONS} />
+        <TextField
+          label="What did you see? (optional)" value={form.notes} maxLength={300}
+          onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="e.g. A few sacks sprouting near the door"
+        />
+        <p className="text-xs text-muted">This is a record only. Damaged sacks can be marked one by one from their tag.</p>
+        <Notice>{save.error}</Notice>
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button type="submit" disabled={save.busy}>{save.busy ? 'Saving…' : 'Save'}</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
 
 function Row({ label, children }) {
   return (
@@ -24,7 +55,10 @@ function EditForm({ batch, onDone, onClose }) {
   const [form, setForm] = useState({
     declaredSackCount: String(batch.declaredSackCount), variety: batch.variety, sizeClass: batch.sizeClass,
     grade: batch.grade, totalWeightKg: batch.totalWeightKg ?? '', notes: batch.notes,
+    farmId: batch.farm?.id ?? '',
   });
+  const farms = [...batch.ownerFarms];
+  if (batch.farm && !farms.some((f) => String(f.id) === String(batch.farm.id))) farms.push({ id: batch.farm.id, name: batch.farm.name });
   const set = (field) => (e) => setForm({ ...form, [field]: e.target.value });
   const receiving = batch.status === 'receiving';
   const onSubmit = (e) => {
@@ -50,6 +84,12 @@ function EditForm({ batch, onDone, onClose }) {
           <TextField label="Size class" value={form.sizeClass} onChange={set('sizeClass')} />
           <TextField label="Grade" value={form.grade} onChange={set('grade')} />
         </div>
+        {batch.memberId && (
+          <SelectField
+            label="From farm" value={String(form.farmId)} onChange={set('farmId')}
+            options={[['', farms.length ? 'Not recorded' : 'This farmer has no farms yet'], ...farms.map((f) => [String(f.id), f.name])]}
+          />
+        )}
         <Field label="Notes"><textarea rows={2} className={inputClass} value={form.notes} onChange={set('notes')} /></Field>
         <p className="text-xs text-muted">The owner and the fee rates of a delivery cannot be changed.</p>
         <Notice>{save.error}</Notice>
@@ -68,7 +108,7 @@ export default function BatchDetail() {
   const { data, error, loading, setData } = useLoad(`/batches/${id}`);
   const cancel = useSave();
   const release = useSave();
-  const [dialog, setDialog] = useState(null); // 'edit' | 'cancel'
+  const [dialog, setDialog] = useState(null); // 'edit' | 'cancel' | 'condition'
 
   const back = (
     <Link to="/inventory" className="mb-4 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
@@ -102,11 +142,13 @@ export default function BatchDetail() {
             <BatchStatusBadge batch={batch} />
             {account?.plan && <PlanBadge status={account.plan.status} />}
             {batch.ownerType === 'guest' && <Badge color="orange">Guest</Badge>}
+            {batch.ownerType === 'trader' && <Badge>Trader</Badge>}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
           {receiving && <Button onClick={() => navigate(`/inventory/${id}/receive`)}><ScanLine size={16} /> Scan Sacks In</Button>}
           {canRelease && <Button onClick={onRelease} disabled={release.busy}><LogOut size={16} /> Release Sacks</Button>}
+          {['stored', 'partly_released', 'receiving'].includes(batch.status) && <Button variant="secondary" onClick={() => setDialog('condition')}><ClipboardCheck size={16} /> Check Condition</Button>}
           {batch.status !== 'cancelled' && <Button variant="secondary" onClick={() => setDialog('edit')}><Pencil size={16} /> Edit</Button>}
           {receiving && batch.sacksReceived === 0 && <Button variant="danger" onClick={() => setDialog('cancel')}>Cancel Delivery</Button>}
         </div>
@@ -135,6 +177,18 @@ export default function BatchDetail() {
             <Row label="Variety">{batch.variety}</Row>
             <Row label="Size class">{batch.sizeClass}</Row>
             <Row label="Grade">{batch.grade}</Row>
+            {batch.ownerType !== 'coop_owned' && <Row label="From farm">{batch.farm && <>{batch.farm.name}{batch.farm.location && <span className="block text-xs text-muted">{batch.farm.location}</span>}</>}</Row>}
+            <div className={batch.ownerType === 'coop_owned' ? 'sm:col-span-3' : 'sm:col-span-2'}>
+              <Row label="Condition">
+                {batch.condition && (
+                  <>
+                    <Badge color={CONDITION_COLORS[batch.condition.rating]}>{CONDITION_LABELS[batch.condition.rating]}</Badge>
+                    {batch.condition.notes && <span> {batch.condition.notes}</span>}
+                    <span className="block text-xs text-muted">Checked {dateTime(batch.condition.checkedAt)} by {batch.condition.checkedByName}</span>
+                  </>
+                )}
+              </Row>
+            </div>
             <div className="sm:col-span-3"><Row label="Notes">{batch.notes}</Row></div>
           </dl>
         </Card>
@@ -200,6 +254,7 @@ export default function BatchDetail() {
         </Card>
       </div>
 
+      {dialog === 'condition' && <ConditionForm batch={batch} onClose={() => setDialog(null)} onDone={(result) => { setData(result); setDialog(null); }} />}
       {dialog === 'edit' && <EditForm batch={batch} onClose={() => setDialog(null)} onDone={(result) => { setData(result); setDialog(null); }} />}
       {dialog === 'cancel' && (
         <Modal title="Cancel Delivery" onClose={() => setDialog(null)}>

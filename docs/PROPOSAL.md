@@ -24,9 +24,9 @@ Assumptions I made while adding your later changes. Tell me if any is wrong; non
 
 | # | Assumption |
 |---|---|
-| A | **Member discount** reduces the storage fee and any added fees for batches whose owner is a member. It does not reduce the overdue fee, and guests never get it. |
+| A | **Member discount** reduces the storage fee and any added fees for batches whose owner is a member. It does not reduce the overdue fee, and guests and traders never get it. |
 | B | **Coop-owned stock** is charged no fees. Its batches have no member and an empty fee list. |
-| C | A batch's `ownerType` is taken from the farmer's tier at intake (member or guest) and does not change if the farmer's tier changes later. |
+| C | A batch's `ownerType` is taken from the farmer's tier at intake (member, guest, or trader) and does not change if the farmer's tier changes later. |
 | D | **Available capacity** at intake = total capacity of active quadrants − sacks in storage − sacks still expected from other batches that are being received. |
 | E | **Pre-printed tags** must use the OnioNet code format (prefix, 6-digit serial, check character). If their QR has no OnioNet signature, the tag is recorded as unsigned and only its registered code is accepted when scanned. Tags printed from OnioNet are always signed. |
 | F | A **release slip** covers all sacks scanned out in one visit. The phone groups them under one release number. |
@@ -166,7 +166,7 @@ Layout lives in Quadrant, not here.
 | `appliesTo` | `every_batch` (added automatically at intake) or `optional` (staff tick it at intake when it applies) |
 | `active` | turning a fee off stops it for new batches without erasing history |
 
-**3. Member discount.** `memberDiscountPercent` (0 to 100). Applied to batches owned by a member, never to guests (assumption A).
+**3. Member discount.** `memberDiscountPercent` (0 to 100). Applied to batches owned by a member, never to guests or traders (assumption A).
 
 Rules:
 
@@ -209,14 +209,15 @@ A farmer who stores onions. Has a User only if they have portal access.
 | Field | Notes |
 |---|---|
 | `memberNo` | per-cooperative number, e.g. `FAF-M-0042` |
-| `tier` | `member` or `guest`; required. Guests can store onions but get no member discount |
+| `tier` | `member`, `guest`, or `trader`; required. Guests (non-member farmers) and traders can store onions but get no member discount |
 | `firstName`, `lastName` | |
 | `phone`, `address` | `{ barangay, municipality, province }` |
 | `status` | `active`, `inactive` |
-| `birthDate`, `farmAreaHa`, `rsbsaNo` | optional |
+| `birthDate`, `farmAreaHa` (total), `rsbsaNo` | optional |
+| `farms` | `[{ name, location (PSGC codes and names, sitio), areaHa, notes, active }]`; where the farmer grows onions. A farm no longer used is turned off, never deleted |
 | `joinedAt`, `notes` | |
 
-Only what the cooperative needs is collected (Data Privacy Act). Farm Locations will attach here in the later phase.
+Only what the cooperative needs is collected (Data Privacy Act).
 
 ### Batch
 
@@ -225,10 +226,12 @@ One delivery from one farmer, received at the gate.
 | Field | Notes |
 |---|---|
 | `batchNo` | per cooperative, e.g. `FAF-B-2026-0001` |
-| `ownerType` | `member`, `guest`, or `coop_owned` |
+| `ownerType` | `member`, `guest`, `trader`, or `coop_owned` |
 | `memberId` | the farmer; empty for coop-owned stock |
 | `receivedAt`, `receivedBy` | |
 | `variety`, `sizeClass`, `grade` | recorded at intake only |
+| `farm` | `{ farmId, name, location }`, the owner's farm the onions came from, copied at intake so later farm edits do not change it; optional |
+| `condition` | `{ rating: good, fair, poor, notes, checkedAt, checkedByName }`, the latest check by staff (at intake or later); earlier checks are in the audit log. A record only; the system does not measure quality |
 | `declaredSackCount` | what the farmer says was delivered |
 | `totalWeightKg` | optional |
 | `contractStart`, `contractEnd` | end = start + contract months at intake |
@@ -326,7 +329,7 @@ Money that actually moved. Charges are not stored here; they come from the fee s
 | Field | Notes |
 |---|---|
 | `receiptNo` | per cooperative |
-| `type` | `payment`, `adjustment` (waiver or discount), `refund` |
+| `type` | `payment`, `adjustment` (waiver or discount), `refund`, `charge` (manual charge: `chargeKind` hauling, overdue, or other) |
 | `batchId`, `memberId` | |
 | `amountCentavos` | integer |
 | `method`, `referenceNo` | `cash`, `gcash`, `bank`; reference for non-cash |
@@ -418,6 +421,8 @@ Adding or editing a quadrant is blocked if total active capacity would exceed th
 | POST | `/members/search` | search by name or number in the body |
 | GET, PATCH | `/members/:id` | detail, edit |
 | POST | `/members/:id/portal-access` | create or disable the farmer's login |
+| POST | `/members/:id/farms` | add a farm |
+| PATCH | `/members/:id/farms/:farmId` | edit a farm, or turn it off or on |
 | GET | `/members/:id/ledger` | charges and payments across batches |
 
 ### Inventory

@@ -7,6 +7,7 @@ import { api } from '../../lib/api.js';
 import { date, dateTime, formatPHP, number } from '../../lib/format.js';
 import { useLoad, useSave } from '../../lib/useLoad.js';
 import FarmerForm from './FarmerForm.jsx';
+import FarmsCard from './FarmsCard.jsx';
 import { StatusBadge, TierBadge } from './badges.jsx';
 import { BatchStatusBadge } from '../inventory/labels.jsx';
 import RecordPayment from '../transactions/RecordPayment.jsx';
@@ -162,7 +163,7 @@ export default function FarmerDetail() {
             <Row label="Mobile number">{member.phone}</Row>
             <Row label="Address">{address}</Row>
             <Row label="Birth date">{member.birthDate && date(member.birthDate)}</Row>
-            <Row label="Farm area">{member.farmAreaHa != null && `${number(member.farmAreaHa)} ha`}</Row>
+            <Row label="Total farm area">{member.farmAreaHa != null && `${number(member.farmAreaHa)} ha`}</Row>
             <Row label="RSBSA number">{member.rsbsaNo}</Row>
             <Row label="Date joined">{member.joinedAt && date(member.joinedAt)}</Row>
             <div className="sm:col-span-2"><Row label="Notes">{member.notes}</Row></div>
@@ -170,6 +171,8 @@ export default function FarmerDetail() {
         </Card>
 
         <LoginCard member={member} portal={portal} onChange={reload} />
+
+        <FarmsCard member={member} onChange={reload} />
 
         <Card className="lg:col-span-3">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">

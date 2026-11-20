@@ -27,6 +27,20 @@ const AUDIT_FIELDS = [
 const PAGE_SIZE = 50;
 const fullName = (m) => `${m.firstName} ${m.lastName}`.trim();
 
+const placeView = (a) => ({
+  country: a?.country ?? '',
+  region: a?.region ?? '', regionCode: a?.regionCode ?? '',
+  province: a?.province ?? '', provinceCode: a?.provinceCode ?? '',
+  municipality: a?.municipality ?? '', municipalityCode: a?.municipalityCode ?? '',
+  barangay: a?.barangay ?? '', barangayCode: a?.barangayCode ?? '',
+  street: a?.street ?? '',
+});
+
+export const farmView = (f) => ({
+  id: f._id, name: f.name, location: placeView(f.location), locationLine: addressLine(f.location),
+  areaHa: f.areaHa ?? null, notes: f.notes ?? '', active: f.active !== false,
+});
+
 const view = (m) => ({
   id: m._id,
   memberNo: m.memberNo,
@@ -46,6 +60,7 @@ const view = (m) => ({
   addressLine: addressLine(m.address),
   birthDate: m.birthDate ?? null,
   farmAreaHa: m.farmAreaHa ?? null,
+  farms: (m.farms ?? []).map(farmView),
   rsbsaNo: m.rsbsaNo ?? '',
   status: m.status,
   joinedAt: m.joinedAt ?? null,
@@ -124,11 +139,12 @@ async function listMembers(body) {
 
 async function totals() {
   const rows = await Member.aggregate([{ $group: { _id: { tier: '$tier', status: '$status' }, count: { $sum: 1 } } }]);
-  const out = { all: 0, members: 0, guests: 0, inactive: 0 };
+  const out = { all: 0, members: 0, guests: 0, traders: 0, inactive: 0 };
   for (const { _id, count } of rows) {
     out.all += count;
     if (_id.status === 'inactive') out.inactive += count;
     else if (_id.tier === 'guest') out.guests += count;
+    else if (_id.tier === 'trader') out.traders += count;
     else out.members += count;
   }
   return out;
@@ -224,6 +240,66 @@ router.patch('/:id', async (req, res) => {
     }
   }
   res.json({ member: view(member) });
+});
+
+// ----- Farms -----
+
+const FARM_AUDIT = ['name', 'location', 'areaHa', 'notes', 'active'];
+
+function cleanFarm(body = {}, { creating = false } = {}) {
+  const data = pick(body, ['name', 'location', 'areaHa', 'notes', 'active']);
+  if (data.name !== undefined || creating) {
+    data.name = String(data.name ?? '').trim();
+    if (!data.name) throw new HttpError(400, 'Give the farm a name, such as "Riverside lot".');
+    if (data.name.length > 80) throw new HttpError(400, 'The farm name is too long.');
+  }
+  if (data.notes !== undefined) data.notes = String(data.notes ?? '').trim().slice(0, 300);
+  if (data.location !== undefined) {
+    try {
+      data.location = resolveAddress(data.location);
+    } catch (err) {
+      throw new HttpError(400, err.message);
+    }
+    if (!data.location.municipalityCode) throw new HttpError(400, 'Choose at least the city or municipality where the farm is.');
+  } else if (creating) {
+    throw new HttpError(400, 'Choose where the farm is.');
+  }
+  if (data.areaHa === '' || data.areaHa === null) data.areaHa = null;
+  else if (data.areaHa !== undefined) {
+    const area = Number(data.areaHa);
+    if (!Number.isFinite(area) || area < 0) throw new HttpError(400, 'Farm area must be 0 or more hectares.');
+    data.areaHa = area;
+  }
+  if (data.active !== undefined) data.active = data.active !== false;
+  return data;
+}
+
+const farmAudit = (f) => ({ ...f, location: addressLine(f.location) || null });
+
+router.post('/:id/farms', async (req, res) => {
+  const member = await Member.findOne({ _id: req.params.id });
+  if (!member) throw notFound('Farmer');
+  if (member.farms.length >= 50) throw new HttpError(400, 'A farmer can have up to 50 farms.');
+  member.farms.push(cleanFarm(req.body, { creating: true }));
+  await member.save();
+  const farm = member.farms.at(-1);
+  await recordAudit({ action: 'create', entityType: 'Farm', entityId: farm._id, entityLabel: `${farm.name} (${fullName(member)})` });
+  res.status(201).json({ member: view(member.toObject()) });
+});
+
+router.patch('/:id/farms/:farmId', async (req, res) => {
+  const member = await Member.findOne({ _id: req.params.id });
+  if (!member) throw notFound('Farmer');
+  const farm = member.farms.id(req.params.farmId);
+  if (!farm) throw notFound('Farm');
+  const before = farmAudit(farm.toObject());
+  farm.set(cleanFarm(req.body));
+  const changes = diff(before, farmAudit(farm.toObject()), FARM_AUDIT);
+  if (changes.length) {
+    await member.save();
+    await recordAudit({ action: 'update', entityType: 'Farm', entityId: farm._id, entityLabel: `${farm.name} (${fullName(member)})`, changes });
+  }
+  res.json({ member: view(member.toObject()) });
 });
 
 // Farmer login: enable (creates it the first time), disable, or reset the password.

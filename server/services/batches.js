@@ -8,6 +8,8 @@ import { recordAudit } from './audit.js';
 import { capacityOverview } from './capacity.js';
 import { nextNumber } from './sequences.js';
 import { addMonths } from '../lib/dates.js';
+import { addressLine } from '../lib/address.js';
+import { BATCH_CONDITIONS } from '../../shared/statuses.js';
 
 export { addMonths };
 
@@ -23,7 +25,7 @@ export function feeTermsFor(fees, ownerType, optionalFeeIds = []) {
   return {
     storageFeeCentavos: fees.storageFeeCentavos,
     overdueFeePerDayCentavos: fees.overdueFeePerDayCentavos,
-    memberDiscountPercent: ownerType === 'member' ? fees.memberDiscountPercent : 0, // never for guests
+    memberDiscountPercent: ownerType === 'member' ? fees.memberDiscountPercent : 0, // never for guests or traders
     added: fees.added
       .filter((f) => f.active && (f.appliesTo === 'every_batch' || chosen.has(String(f._id))))
       .map((f) => ({ name: f.name, amountCentavos: f.amountCentavos, chargedPer: f.chargedPer })),
@@ -52,6 +54,27 @@ function weight(value) {
   return kg;
 }
 
+// The farm a delivery came from: one of the owner's active farms, copied.
+function farmFor(member, farmId) {
+  if (!farmId) return null;
+  const farm = (member?.farms ?? []).find((f) => String(f._id) === String(farmId));
+  if (!farm) throw new HttpError(400, 'Choose one of this farmer\'s farms.');
+  if (farm.active === false) throw new HttpError(400, 'That farm is no longer in use. Choose another.');
+  return { farmId: farm._id, name: farm.name, location: addressLine(farm.location) };
+}
+
+// A condition check by the signed-in staff member, or null to leave it unrecorded.
+function conditionFrom(body) {
+  if (!body?.rating) return null;
+  if (!BATCH_CONDITIONS.includes(body.rating)) throw new HttpError(400, 'Choose Good, Fair, or Poor.');
+  return {
+    rating: body.rating, notes: String(body.notes ?? '').trim().slice(0, 300) || undefined,
+    checkedAt: new Date(), checkedByName: getContext().userName ?? 'Staff',
+  };
+}
+
+const conditionText = (c) => (c ? `${c.rating}${c.notes ? ` (${c.notes})` : ''}` : null);
+
 // Starts an intake. The owner is a farmer, or the cooperative itself.
 export async function startIntake(body = {}) {
   const ctx = getContext();
@@ -64,7 +87,7 @@ export async function startIntake(body = {}) {
     member = body.memberId ? await Member.findOne({ _id: body.memberId }).lean() : null;
     if (!member) throw new HttpError(400, 'Choose the farmer who delivered the sacks.');
     if (member.status !== 'active') throw new HttpError(400, 'This farmer is inactive. Make them active before receiving a delivery.');
-    ownerType = member.tier; // member or guest, fixed for this delivery from now on
+    ownerType = member.tier; // member, guest, or trader, fixed for this delivery from now on
   }
   await assertRoom(declaredSackCount);
 
@@ -82,6 +105,8 @@ export async function startIntake(body = {}) {
     grade: text(body.grade),
     declaredSackCount,
     totalWeightKg: weight(body.totalWeightKg),
+    farm: member ? farmFor(member, body.farmId) : null,
+    condition: conditionFrom(body.condition),
     contractStart: receivedAt,
     contractEnd: addMonths(receivedAt, coop.settings.contractMonths),
     feeTerms: feeTermsFor(coop.settings.fees, ownerType, Array.isArray(body.optionalFeeIds) ? body.optionalFeeIds : []),
@@ -104,6 +129,12 @@ export async function updateBatch(id, body = {}) {
     if (body[field] !== undefined) batch[field] = text(body[field]);
   }
   if (body.totalWeightKg !== undefined) batch.totalWeightKg = weight(body.totalWeightKg);
+  if (body.farmId !== undefined && batch.memberId && String(body.farmId || '') !== String(batch.farm?.farmId ?? '')) {
+    const member = await Member.findOne({ _id: batch.memberId }).lean();
+    batch.farm = farmFor(member, body.farmId);
+  }
+  // A new check replaces the shown condition; the audit log keeps every earlier one.
+  if (body.condition?.rating) batch.condition = conditionFrom(body.condition);
   if (body.declaredSackCount !== undefined) {
     const count = sackCount(body.declaredSackCount);
     if (count !== batch.declaredSackCount) {
@@ -123,6 +154,12 @@ export async function updateBatch(id, body = {}) {
   const changes = EDITABLE
     .filter((f) => JSON.stringify(before[f] ?? null) !== JSON.stringify(after[f] ?? null))
     .map((f) => ({ field: f, from: before[f] ?? null, to: after[f] ?? null }));
+  if (String(before.farm?.farmId ?? '') !== String(after.farm?.farmId ?? '')) {
+    changes.push({ field: 'farm', from: before.farm?.name ?? null, to: after.farm?.name ?? null });
+  }
+  if (body.condition?.rating) {
+    changes.push({ field: 'condition', from: conditionText(before.condition), to: conditionText(after.condition) });
+  }
   if (changes.length) {
     await batch.save();
     await recordAudit({ action: 'update', entityType: 'Batch', entityId: batch._id, entityLabel: batch.batchNo, changes });

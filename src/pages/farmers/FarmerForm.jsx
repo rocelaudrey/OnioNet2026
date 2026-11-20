@@ -4,7 +4,7 @@ import { Button, Field, Modal, Notice, SelectField, TextField, inputClass } from
 import { api } from '../../lib/api.js';
 import { useSave } from '../../lib/useLoad.js';
 
-const TIERS = [['member', 'Member'], ['guest', 'Guest']];
+const TIERS = [['member', 'Member'], ['guest', 'Guest'], ['trader', 'Trader']];
 const dateInput = (value) => (value ? String(value).slice(0, 10) : '');
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -69,7 +69,7 @@ export default function FarmerForm({ farmer, onDone, onClose }) {
       <form onSubmit={onSubmit} className="space-y-4">
         <SelectField
           label="Type" value={form.tier} onChange={set('tier')} options={TIERS}
-          hint="Members get the member discount. Guests can store onions but pay the full fee."
+          hint="Members get the member discount. Guests (non-member farmers) and traders can store onions but pay the full fee."
         />
         <div className="grid grid-cols-2 gap-4">
           <TextField label="First name" required value={form.firstName} onChange={set('firstName')} />
@@ -86,7 +86,7 @@ export default function FarmerForm({ farmer, onDone, onClose }) {
         <p className="pt-1 text-xs font-medium text-ink">Optional details</p>
         <div className="grid grid-cols-2 gap-4">
           <TextField label="Birth date" type="date" max={today()} value={form.birthDate} onChange={set('birthDate')} />
-          <TextField label="Farm area (hectares)" type="number" min="0" step="0.01" value={form.farmAreaHa} onChange={set('farmAreaHa')} />
+          <TextField label="Total farm area (hectares)" type="number" min="0" step="0.01" value={form.farmAreaHa} onChange={set('farmAreaHa')} />
           <TextField label="RSBSA number" value={form.rsbsaNo} onChange={set('rsbsaNo')} />
           <TextField label="Date joined" type="date" max={today()} value={form.joinedAt} onChange={set('joinedAt')} />
         </div>

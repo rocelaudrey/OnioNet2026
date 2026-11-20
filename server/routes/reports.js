@@ -222,7 +222,7 @@ router.get('/members', async (req, res) => {
   const by = (key, value) => rows.filter((r) => r[key] === value).length;
   res.json({
     generatedAt: new Date(),
-    totals: { all: rows.length, members: by('tier', 'member'), guests: by('tier', 'guest'), inactive: by('status', 'inactive') },
+    totals: { all: rows.length, members: by('tier', 'member'), guests: by('tier', 'guest'), traders: by('tier', 'trader'), inactive: by('status', 'inactive') },
     members: rows,
   });
 });
@@ -234,7 +234,7 @@ router.get('/statement/:memberId', async (req, res) => {
   res.json(statement);
 });
 
-// Printing or saving a report as PDF is recorded in the audit log, since
+// Printing, saving as PDF, or downloading a report (CSV) is recorded in the audit log, since
 // reports can hold farmers' personal data (RA 10173).
 const REPORT_NAMES = {
   inventory: 'Inventory report', movements: 'Movements report', fees: 'Fees and collections report',
@@ -255,6 +255,7 @@ router.post('/printed', async (req, res) => {
     label = `${label}: ${member.firstName} ${member.lastName}`;
     entityId = member._id;
   }
+  if (req.body?.format === 'csv') label = `${label} (downloaded as CSV)`;
   await recordAudit({ action: 'export', entityType: 'Report', entityId, entityLabel: label });
   res.json({ ok: true });
 });

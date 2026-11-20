@@ -69,7 +69,7 @@ describe('Farmers', () => {
     expect((await search({ tier: 'guest' })).body.members.map((m) => m.fullName)).toEqual(['Maria Dela Cruz']);
     const all = await search({});
     expect(all.body.total).toBe(4);
-    expect(all.body.totals).toEqual({ all: 4, members: 3, guests: 1, inactive: 0 });
+    expect(all.body.totals).toEqual({ all: 4, members: 3, guests: 1, traders: 0, inactive: 0 });
     // Never another cooperative's farmers, even though both have a "Juan".
     expect((await search({ q: 'Juan' })).body.members.map((m) => m.fullName)).toEqual(['Juan Alpha']);
   });
@@ -139,7 +139,7 @@ describe('Farmers', () => {
       const res = await as(A.staff).get(`/api/members/${maria.id}`).expect(200);
       expect(res.body.portal.active).toBe(false);
       await as(A.staff).post(`/api/members/${maria.id}/portal-access`, { action: 'enable' }).expect(400);
-      expect((await as(A.staff).post('/api/members/search', {})).body.totals).toEqual({ all: 4, members: 3, guests: 0, inactive: 1 });
+      expect((await as(A.staff).post('/api/members/search', {})).body.totals).toEqual({ all: 4, members: 3, guests: 0, traders: 0, inactive: 1 });
     });
 
     it('is blocked when the plan does not include the farmer portal', async () => {

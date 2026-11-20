@@ -16,7 +16,13 @@ export default function IntakeForm({ summary, onDone, onClose }) {
   const { intake, available } = summary;
   const [farmer, setFarmer] = useState(null);
   const [coopOwned, setCoopOwned] = useState(false);
-  const [form, setForm] = useState({ declaredSackCount: '', variety: '', sizeClass: '', grade: '', totalWeightKg: '', notes: '' });
+  const [form, setForm] = useState({ declaredSackCount: '', variety: '', sizeClass: '', grade: '', totalWeightKg: '', notes: '', farmId: '', condition: '', conditionNotes: '' });
+  const farms = (farmer?.farms ?? []).filter((f) => f.active);
+  const chooseFarmer = (next) => {
+    setFarmer(next);
+    const own = (next?.farms ?? []).filter((f) => f.active);
+    setForm((f) => ({ ...f, farmId: own.length === 1 ? own[0].id : '' }));
+  };
   const [optional, setOptional] = useState([]);
   const set = (field) => (e) => setForm({ ...form, [field]: e.target.value });
   const toggle = (id) => setOptional(optional.includes(id) ? optional.filter((x) => x !== id) : [...optional, id]);
@@ -32,6 +38,8 @@ export default function IntakeForm({ summary, onDone, onClose }) {
           declaredSackCount: Number(form.declaredSackCount),
           variety: form.variety, sizeClass: form.sizeClass, grade: form.grade,
           totalWeightKg: form.totalWeightKg, notes: form.notes,
+          farmId: coopOwned ? undefined : form.farmId || undefined,
+          condition: form.condition ? { rating: form.condition, notes: form.conditionNotes } : undefined,
           optionalFeeIds: coopOwned ? [] : optional,
         },
       });
@@ -44,7 +52,7 @@ export default function IntakeForm({ summary, onDone, onClose }) {
       <form onSubmit={onSubmit} className="space-y-4">
         {!coopOwned && (
           <Field label="Farmer">
-            <FarmerPicker value={farmer} onChange={setFarmer} />
+            <FarmerPicker value={farmer} onChange={chooseFarmer} />
           </Field>
         )}
         <label className="flex items-center gap-2 text-sm text-ink">
@@ -62,6 +70,21 @@ export default function IntakeForm({ summary, onDone, onClose }) {
           <TextField label="Total weight (kg)" type="number" min="0" step="0.1" value={form.totalWeightKg} onChange={set('totalWeightKg')} />
           <ChoiceField label="Size class" options={intake.sizeClasses} value={form.sizeClass} onChange={set('sizeClass')} />
           <ChoiceField label="Grade" options={intake.grades} value={form.grade} onChange={set('grade')} />
+        </div>
+
+        {!coopOwned && farmer && (
+          <SelectField
+            label="From farm" value={form.farmId} onChange={set('farmId')}
+            options={[['', farms.length ? 'Not recorded' : 'No farms recorded for this farmer'], ...farms.map((f) => [f.id, `${f.name}${f.locationLine ? ` (${f.locationLine})` : ''}`])]}
+            hint={farms.length ? undefined : 'Farms can be added on the farmer\'s page.'}
+          />
+        )}
+        <div className="grid grid-cols-2 gap-4">
+          <SelectField
+            label="Condition on arrival" value={form.condition} onChange={set('condition')}
+            options={[['', 'Not checked'], ['good', 'Good'], ['fair', 'Fair'], ['poor', 'Poor']]}
+          />
+          <TextField label="Condition notes" value={form.conditionNotes} onChange={set('conditionNotes')} maxLength={300} disabled={!form.condition} placeholder="Optional" />
         </div>
 
         {!coopOwned && intake.optionalFees.length > 0 && (

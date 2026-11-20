@@ -1,7 +1,12 @@
 // Status and option names used by both the API and the UI.
-export const MEMBER_TIERS = ['member', 'guest'];
+// Members get the member discount. Guests and traders pay the full fee.
+export const MEMBER_TIERS = ['member', 'guest', 'trader'];
+export const TIER_LABELS = { member: 'Member', guest: 'Guest', trader: 'Trader' };
 export const MEMBER_STATUSES = ['active', 'inactive'];
-export const OWNER_TYPES = ['member', 'guest', 'coop_owned'];
+export const OWNER_TYPES = ['member', 'guest', 'trader', 'coop_owned'];
+// How the onions looked when checked (at intake, or later). The system does not measure quality.
+export const BATCH_CONDITIONS = ['good', 'fair', 'poor'];
+export const CONDITION_LABELS = { good: 'Good', fair: 'Fair', poor: 'Poor' };
 export const BATCH_STATUSES = ['receiving', 'stored', 'partly_released', 'released', 'cancelled'];
 export const SACK_STATUSES = ['stored', 'released', 'damaged', 'lost'];
 export const TAG_STATUSES = ['available', 'assigned', 'damaged', 'lost', 'retired'];

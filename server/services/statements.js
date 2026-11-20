@@ -39,7 +39,10 @@ export async function statementFor(memberId, { forFarmer = false } = {}) {
     const c = counts.get(String(b._id)) ?? { received: 0, stored: 0 };
     return {
       id: b._id, batchNo: b.batchNo, status: b.status, receivedAt: b.receivedAt, contractEnd: b.contractEnd,
-      variety: b.variety ?? '', sacksReceived: c.received, sacksStored: c.stored,
+      variety: b.variety ?? '', farmName: b.farm?.name ?? '',
+      // Farmers see the rating and notes, not who checked.
+      condition: b.condition ? { rating: b.condition.rating, notes: b.condition.notes ?? '', checkedAt: b.condition.checkedAt } : null,
+      sacksReceived: c.received, sacksStored: c.stored,
       overdue: c.stored > 0 && b.contractEnd < now,
       // Farmers do not see staff names or the cooperative's internal void reasons.
       account: forFarmer && account.plan ? { ...account, plan: { ...account.plan, createdByName: undefined } } : account,

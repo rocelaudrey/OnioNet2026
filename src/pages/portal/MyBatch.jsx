@@ -8,6 +8,7 @@ import { BATCH_STATUS, SACK_STATUS } from '../inventory/labels.jsx';
 import { Schedule } from '../transactions/PlanCard.jsx';
 import { CHARGE_KIND_LABELS, METHOD_LABELS, TYPE_LABELS, amountSign, quantityText } from '../transactions/labels.jsx';
 import { balanceWords } from './MemberHome.jsx';
+import { CONDITION_LABELS } from '../../../shared/statuses.js';
 
 function Row({ label, children, strong }) {
   return (
@@ -47,6 +48,8 @@ export default function MyBatch() {
         <Card title="My Sacks">
           <dl>
             <Row label="In storage now">{number(d.sacksStored)} of {number(d.sacksReceived)}</Row>
+            {d.farmName && <Row label="From farm">{d.farmName}</Row>}
+            {d.condition && <Row label="Condition">{CONDITION_LABELS[d.condition.rating]}{d.condition.notes && ` · ${d.condition.notes}`} <span className="text-xs text-muted">({date(d.condition.checkedAt)})</span></Row>}
             <Row label="Contract ends">{date(d.contractEnd)}</Row>
             {[...where.entries()].map(([code, count]) => <Row key={code} label={`Stored in ${code}`}>{number(count)} sacks</Row>)}
           </dl>

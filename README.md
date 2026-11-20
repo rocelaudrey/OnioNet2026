@@ -17,7 +17,7 @@ The QR code holds only the tag's ID and a short security signature, never farmer
 
 Main pages for cooperatives: Dashboard, Inventory, QR Tags, Farmers, Transactions, Reports, Audit Logs, Settings.
 
-Reports (printed or saved as PDF in the browser): inventory, movements, fees and collections, overdue deliveries, tags, farmer masterlist, and statement of account.
+Reports (printed, saved as PDF, or downloaded as CSV for Excel, all in the browser): inventory, movements, fees and collections, overdue deliveries, tags, farmer masterlist, and statement of account.
 
 ## How it is built
 
@@ -79,6 +79,8 @@ CLAUDE.md             Working rules for the codebase
    ```
    It opens on http://localhost:5173 (the API runs on port 3001). Sign in with the seeded accounts.
 
+On the deployed site, phones can install OnioNet like an app: in Chrome, open the menu and choose **Add to Home screen** (or **Install app**); on iPhone, tap Share, then **Add to Home Screen**. It still needs the internet; with no connection it shows a "No internet connection" page instead of saving anything.
+
 Camera scanning needs HTTPS. It works on `localhost` on the same computer, but not from a phone over your Wi-Fi; test phone scanning on the deployed site.
 
 ### Commands
@@ -98,6 +100,20 @@ Data scripts (each previews by default; add `--confirm` to apply). Use `--env-fi
 | `node --env-file=.env scripts/set-fees.js --prefix FAF --storage 270 --overdue 0 --discount 0 --months 4` | Sets a cooperative's fees and contract length, with an audit entry |
 | `node --env-file=.env scripts/sample-data.js --prefix FAF` | Loads a season of sample farmers, deliveries, releases, charges, and payments, recorded by a "Sample Data" account |
 | `node --env-file=.env scripts/remove-sample-data.js --prefix FAF` | Removes all sample data and restores the numbering |
+| `node --env-file=.env scripts/backup.js` | Saves a copy of the whole database into `backups/` (gzipped, one file per collection) |
+| `node --env-file=.env scripts/restore.js backups/<folder>` | Restores a backup into an empty database |
+
+### Backups
+
+The free Atlas M0 tier has no automatic backups. Run `scripts/backup.js` against the live database regularly (for example every evening during the season):
+
+```bash
+node --env-file=.env.production.local scripts/backup.js
+```
+
+Backups contain farmers' personal data. Keep them on an encrypted drive or a private, access-controlled folder, and delete old ones you no longer need. `backups/` is ignored by git.
+
+To recover, restore into a **new** database name (change the name at the end of `MONGODB_URI`, for example `.../onionet_restored`), check it, then point Vercel's `MONGODB_URI` at it and redeploy. The restore script refuses to write into a database that already has data.
 
 ## Settings
 

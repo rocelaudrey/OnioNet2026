@@ -4,6 +4,7 @@ import { Badge, Table, Td } from '../../components/ui.jsx';
 import { date, dateTime, formatPHP, number } from '../../lib/format.js';
 import { useLoad } from '../../lib/useLoad.js';
 import { BATCH_STATUS } from '../inventory/labels.jsx';
+import { TIER_LABELS } from '../../../shared/statuses.js';
 import { TAG_STATUS } from '../tags/labels.jsx';
 import { CHARGE_KIND_LABELS, METHOD_LABELS, PlanBadge, TYPE_LABELS, amountSign, lineText } from '../transactions/labels.jsx';
 import ReportShell, { DateRange, Figures, Loading, Section, defaultRange } from './ReportShell.jsx';
@@ -196,13 +197,13 @@ export function MembersReport() {
   const { totals } = data;
   return (
     <ReportShell report="members" title="Farmer Masterlist" generatedAt={data.generatedAt}>
-      <Figures items={[['All farmers', number(totals.all)], ['Members', number(totals.members)], ['Guests', number(totals.guests)], ['Inactive', number(totals.inactive)]]} />
+      <Figures items={[['All farmers', number(totals.all)], ['Members', number(totals.members)], ['Guests', number(totals.guests)], ['Traders', number(totals.traders ?? 0)], ['Inactive', number(totals.inactive)]]} />
       {data.members.length === 0 ? <Empty>No farmers yet.</Empty> : (
         <Table minWidth={1000} columns={['Member No.', 'Name', 'Type', 'Mobile', 'Address', 'Farm (ha)', 'RSBSA No.', 'Deliveries', 'Sacks stored', 'Balance']}>
           {data.members.map((m) => (
             <tr key={m.memberNo} className={m.status === 'inactive' ? 'text-muted' : ''}>
               <Td className="whitespace-nowrap">{m.memberNo}</Td><Td className="font-medium">{m.name}{m.status === 'inactive' && ' (inactive)'}</Td>
-              <Td>{m.tier === 'guest' ? 'Guest' : 'Member'}</Td><Td className="whitespace-nowrap">{m.phone}</Td><Td>{m.address}</Td>
+              <Td>{TIER_LABELS[m.tier]}</Td><Td className="whitespace-nowrap">{m.phone}</Td><Td>{m.address}</Td>
               <Td>{m.farmAreaHa ?? ''}</Td><Td className="whitespace-nowrap">{m.rsbsaNo}</Td><Td>{number(m.deliveries)}</Td><Td>{number(m.sacksStored)}</Td>
               <Td className="whitespace-nowrap">{m.deliveries ? owed(m.balanceCentavos) : ''}</Td>
             </tr>

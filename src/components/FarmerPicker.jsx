@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Search, X } from 'lucide-react';
 import { inputClass } from './ui.jsx';
 import { api } from '../lib/api.js';
+import { TIER_LABELS } from '../../shared/statuses.js';
 
 // Finds an active farmer by name or member number (sent in the request body).
 export default function FarmerPicker({ value, onChange }) {
@@ -24,7 +25,7 @@ export default function FarmerPicker({ value, onChange }) {
       <div className="mt-1 flex items-center justify-between rounded-lg border border-brand-green bg-brand-green-tint px-3 py-2.5">
         <div>
           <p className="text-sm font-medium text-ink">{value.fullName}</p>
-          <p className="text-xs text-muted">{value.memberNo} · {value.tier === 'guest' ? 'Guest' : 'Member'}</p>
+          <p className="text-xs text-muted">{value.memberNo} · {TIER_LABELS[value.tier]}</p>
         </div>
         <button type="button" onClick={() => onChange(null)} aria-label="Choose a different farmer" className="rounded-lg p-1.5 text-muted hover:bg-white">
           <X size={16} />
@@ -48,7 +49,7 @@ export default function FarmerPicker({ value, onChange }) {
             <li key={m.id}>
               <button type="button" onClick={() => { onChange(m); setQ(''); }} className="flex w-full items-center justify-between px-3 py-2.5 text-left hover:bg-page">
                 <span className="text-sm font-medium text-ink">{m.fullName}</span>
-                <span className="text-xs text-muted">{m.memberNo} · {m.tier === 'guest' ? 'Guest' : 'Member'}</span>
+                <span className="text-xs text-muted">{m.memberNo} · {TIER_LABELS[m.tier]}</span>
               </button>
             </li>
           ))}

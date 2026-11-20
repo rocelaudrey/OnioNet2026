@@ -1,5 +1,7 @@
+import { useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Printer } from 'lucide-react';
+import { ArrowLeft, Download, Printer } from 'lucide-react';
+import { downloadCsv, tablesToRows } from '../../lib/csv.js';
 import { Button, Notice } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
 import { dateTime } from '../../lib/format.js';
@@ -14,10 +16,23 @@ export default function ReportShell({ report, title, subtitle, generatedAt, filt
   const canPrint = user.features.includes('pdf_reports');
   const c = coop.data?.cooperative;
 
+  const article = useRef(null);
   const onPrint = async () => {
     try {
       await api('/reports/printed', { method: 'POST', body: { report, ...printBody } });
       window.print();
+    } catch (err) {
+      alert(err.message); // eslint-disable-line no-alert
+    }
+  };
+  // The spreadsheet holds exactly the tables shown, so its numbers match the printout.
+  const onCsv = async () => {
+    try {
+      const rows = tablesToRows(article.current);
+      if (!rows.length) throw new Error('There is no table to download in this report.');
+      await api('/reports/printed', { method: 'POST', body: { report, format: 'csv', ...printBody } });
+      const day = new Date().toISOString().slice(0, 10);
+      downloadCsv(`${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${day}.csv`, [[title, subtitle ?? ''], [`As of ${dateTime(generatedAt)}`], [], ...rows]);
     } catch (err) {
       alert(err.message); // eslint-disable-line no-alert
     }
@@ -27,13 +42,16 @@ export default function ReportShell({ report, title, subtitle, generatedAt, filt
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 print:hidden">
         <Link to={back} className="inline-flex items-center gap-1 text-sm text-muted hover:text-ink"><ArrowLeft size={16} /> {back === '/reports' ? 'All reports' : 'Back'}</Link>
-        {canPrint
-          ? <Button onClick={onPrint} disabled={!generatedAt}><Printer size={16} /> Print or Save as PDF</Button>
-          : <p className="text-xs text-muted">Printing reports is not on your plan.</p>}
+        {canPrint ? (
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={onCsv} disabled={!generatedAt}><Download size={16} /> Download for Excel (CSV)</Button>
+            <Button onClick={onPrint} disabled={!generatedAt}><Printer size={16} /> Print or Save as PDF</Button>
+          </div>
+        ) : <p className="text-xs text-muted">Printing and downloading reports is not on your plan.</p>}
       </div>
       {filters && <div className="mb-4 print:hidden">{filters}</div>}
 
-      <article className="space-y-5 rounded-xl bg-white p-5 shadow-sm print:space-y-4 print:rounded-none print:p-0 print:shadow-none">
+      <article ref={article} className="space-y-5 rounded-xl bg-white p-5 shadow-sm print:space-y-4 print:rounded-none print:p-0 print:shadow-none">
         <header className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-ink pb-4">
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="" className="h-12 w-12" />
